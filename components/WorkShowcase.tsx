@@ -107,6 +107,74 @@ export default function WorkShowcase() {
     return () => clearTimeout(t);
   }, []);
 
+  // Spring physics on the folder (juanmora-style): bouncy elastic
+  // overshoot-and-settle on hover and on open, replacing the CSS eases.
+  // Reduced motion keeps the instant CSS class states instead.
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const section = sectionRef.current!;
+    const folder = section.querySelector<HTMLElement>(".work-folder");
+    if (!folder) return;
+    section.classList.add("spring-on");
+
+    const onEnter = () => {
+      if (folder.classList.contains("is-open")) return;
+      gsap.to(folder, {
+        scale: 1.05,
+        duration: 0.85,
+        ease: "elastic.out(1, 0.45)",
+      });
+      gsap.to(".folder-front", {
+        rotateX: -12,
+        duration: 0.85,
+        ease: "elastic.out(1, 0.45)",
+      });
+    };
+    const onLeave = () => {
+      if (folder.classList.contains("is-open")) return;
+      gsap.to(folder, { scale: 1, duration: 0.7, ease: "elastic.out(1, 0.5)" });
+      gsap.to(".folder-front", {
+        rotateX: 0,
+        duration: 0.7,
+        ease: "elastic.out(1, 0.5)",
+      });
+    };
+    folder.addEventListener("pointerenter", onEnter);
+    folder.addEventListener("pointerleave", onLeave);
+    return () => {
+      section.classList.remove("spring-on");
+      folder.removeEventListener("pointerenter", onEnter);
+      folder.removeEventListener("pointerleave", onLeave);
+      gsap.killTweensOf([folder, ".folder-front", ".folder-doc"]);
+    };
+  }, []);
+
+  // The open sequence itself, sprung: front tips with an elastic settle,
+  // documents pop up out of the folder with a staggered bounce.
+  useEffect(() => {
+    if (!open) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const docs = gsap.utils.toArray<HTMLElement>(".folder-doc");
+    gsap.to(".work-folder", {
+      scale: 1,
+      duration: 0.6,
+      ease: "elastic.out(1, 0.5)",
+    });
+    gsap.to(".folder-front", {
+      rotateX: -48,
+      duration: 1.15,
+      ease: "elastic.out(1, 0.38)",
+    });
+    docs.forEach((doc, i) => {
+      gsap.to(doc, {
+        yPercent: [-30, -41, -48][i] * 1,
+        duration: 1,
+        delay: 0.05 + i * 0.07,
+        ease: "back.out(2.6)",
+      });
+    });
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const reduced = window.matchMedia(
@@ -156,11 +224,22 @@ export default function WorkShowcase() {
         );
       });
       tl.to({}, { duration: 0.6 }); // dwell on the last project
+      // This pin is created AFTER the triggers in sections below it
+      // (Skills) — re-sort refresh order by document position so those
+      // triggers get the pin-spacer compensation on refresh.
+      ScrollTrigger.sort();
       ScrollTrigger.refresh();
     }, sectionRef);
 
+    // The pin-spacer shifts everything below (e.g. the Skills triggers)
+    // by several thousand pixels, and the smooth scroll is still moving —
+    // refresh again once the open has settled so downstream triggers
+    // recompute against the final layout.
+    const settleRefresh = window.setTimeout(() => ScrollTrigger.refresh(), 900);
+
     return () => {
       clearTimeout(scrollTimer);
+      clearTimeout(settleRefresh);
       gallery.classList.remove("gallery-pinned");
       ctx.revert();
     };

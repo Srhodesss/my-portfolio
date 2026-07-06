@@ -29,7 +29,7 @@ const SET_B = [
   "industrial designer",
   "UX designer",
   "computational designer",
-  "maker",
+  "craftsman",
   "creative technologist",
 ];
 const SET_C = [

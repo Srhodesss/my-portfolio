@@ -120,12 +120,13 @@ export default function About() {
         tl.fromTo(seg, from, { ...to, duration: i === 9 ? 32 : 20 }, 162 + i * 11);
       });
 
-      // Portrait sharpens gradually across most of the section's scroll,
-      // fully resolving as it completes.
+      // Portrait sharpens gradually across most of the section's scroll
+      // while drifting upward toward the top of the viewport, fully
+      // resolved and settled as the section completes.
       tl.fromTo(
         ".about-img",
-        { filter: "blur(9px)", scale: 1.04 },
-        { filter: "blur(0px)", scale: 1, duration: 210, ease: "none" },
+        { filter: "blur(9px)", scale: 1.04, y: 90 },
+        { filter: "blur(0px)", scale: 1, y: -60, duration: 210, ease: "none" },
         160,
       );
 
@@ -166,13 +167,15 @@ export default function About() {
               Blurred by default under motion, sharpening at the end of
               the section's scroll — static and sharp under reduced
               motion / no JS. */}
-          <div className="about-img relative -mr-6 aspect-[4/5] overflow-hidden rounded-l-[28px] border border-r-0 border-border bg-black md:-mr-12 lg:-mr-20 lg:w-[94%] lg:justify-self-end">
+          <div className="about-img relative -mr-6 aspect-[4/5] overflow-hidden rounded-[36px] border border-border bg-black md:-mr-12 lg:-mr-20 lg:w-[94%] lg:justify-self-end">
             <Image
               src="/about/portrait.jpg"
               alt="Portrait of Sinai Rhodes"
               fill
               sizes="(min-width: 1024px) 44vw, 100vw"
               className="object-cover"
+              style={{ objectPosition: "50% 100%" }}
+              priority
             />
           </div>
         </div>
