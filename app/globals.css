@@ -1,0 +1,469 @@
+@import "tailwindcss";
+@import "lenis/dist/lenis.css";
+
+/* Hebrew background face — Gveret Levin (AlefAlefAlef), texture only. */
+@font-face {
+  font-family: "Hebrew Background";
+  src: url("/fonts/hebrew-background.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ------------------------------------------------------------------ */
+/* Design tokens (CLAUDE.md §4)                                        */
+/* ------------------------------------------------------------------ */
+:root {
+  --bg: #0a0a0a;
+  --text: #ffffff;
+  --text-secondary: #cccccc;
+  --text-muted: #888888;
+  --accent: #ff6b35;
+  --scripture: #f3e8b3;
+  --border: #1a1a1a;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-text: var(--text);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-scripture: var(--scripture);
+  --color-border: var(--border);
+
+  --font-sans: var(--font-primary), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display-serif), Georgia, serif;
+
+  /* Type scale (CLAUDE.md §5) — exposed as text-* utilities */
+  --text-display: clamp(72px, 10vw, 148px);
+  --text-section-word: clamp(64px, 9vw, 160px);
+  --text-heading: 32px;
+  --text-body-l: 24px;
+  --text-body-m: 20px;
+  --text-body-s: 16px;
+  --text-overline: 14px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+/* ------------------------------------------------------------------ */
+/* Hero motion — gentle fade + upward reveal, staggered (CLAUDE.md §8) */
+/*                                                                     */
+/* The entrance is gated on `html.hero-revealing`, which ScriptureIntro*/
+/* adds as it lifts the veil (see the intro section below). By default  */
+/* — no JS, or reduced motion — the hero simply shows its finished      */
+/* state with no animation.                                            */
+/* ------------------------------------------------------------------ */
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+html.hero-revealing .hero-rise {
+  animation: hero-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-rise {
+    animation: none;
+  }
+}
+
+/* Steady (non-blinking) caret after the cycling role word — the hero's
+   single orange accent. */
+.role-caret {
+  display: inline-block;
+  width: 0.09em;
+  height: 1.05em;
+  margin-left: 0.14em;
+  vertical-align: -0.16em;
+  background: var(--accent);
+}
+
+/* Hero glyph field: eased return for the repulsion displacement. */
+.glyph-item {
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glyph-item {
+    transition: none;
+  }
+}
+
+/* Soft bottom fade on the watermark containers so the layer never runs
+   into the hero's bottom nav (and stays identical in the intro copy). */
+.hebrew-mask {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black calc(100% - 190px),
+    transparent calc(100% - 56px)
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black calc(100% - 190px),
+    transparent calc(100% - 56px)
+  );
+}
+
+/* Sequential word shimmer: one word at a time is split into characters
+   and a highlight wave travels across them via staggered delays — per
+   character colour cycling from the 6% base up to a near-white peak and
+   back. */
+@keyframes char-wave {
+  0%,
+  100% {
+    color: inherit;
+    text-shadow: none;
+  }
+  45% {
+    color: color-mix(in srgb, white 85%, var(--scripture));
+    text-shadow: 0 0 12px rgba(243, 232, 179, 0.5);
+  }
+}
+
+.shimmer-ch {
+  animation: char-wave 0.62s ease-in-out both;
+}
+
+/* Slow continuous drift on alternating watermark rows. Row content is two
+   identical halves, so ±50% loops seamlessly. Durations vary per row
+   (inline) so the field never looks mechanical. */
+@keyframes wm-drift-left {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes wm-drift-right {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.wm-drift-l {
+  animation-name: wm-drift-left;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.wm-drift-r {
+  animation-name: wm-drift-right;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer-ch,
+  .wm-drift-l,
+  .wm-drift-r {
+    animation: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Work folder + gallery                                               */
+/* Large glossy folder in the accent orange, Apple-icon style: darker   */
+/* back panel with a tab, project covers peeking out, and a glossy      */
+/* front that tips open in 3D.                                          */
+/* ------------------------------------------------------------------ */
+.work-folder {
+  position: relative;
+  width: min(560px, 74vw);
+  aspect-ratio: 10 / 7;
+  perspective: 1200px;
+  cursor: pointer;
+}
+
+.folder-back {
+  position: absolute;
+  inset: 6% 0 0 0;
+  border-radius: clamp(16px, 4.6vw, 30px);
+  background: linear-gradient(180deg, #e0551f 0%, #bf4314 100%);
+  box-shadow: inset 0 2px 6px rgba(255, 255, 255, 0.18);
+}
+
+.folder-back::before {
+  /* tab */
+  content: "";
+  position: absolute;
+  top: clamp(-22px, -2.6vw, -14px);
+  left: 7%;
+  width: 34%;
+  height: clamp(18px, 3.4vw, 30px);
+  border-radius: clamp(10px, 1.8vw, 16px) clamp(10px, 1.8vw, 16px) 0 0;
+  background: linear-gradient(180deg, #e0551f, #d34d1a);
+}
+
+.folder-docs {
+  position: absolute;
+  inset: 4% 9% 24% 9%;
+}
+
+.folder-doc {
+  position: absolute;
+  bottom: 0;
+  width: 40%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.folder-doc[data-i="0"] {
+  left: 3%;
+  transform: rotate(-6deg) translateY(9%);
+}
+.folder-doc[data-i="1"] {
+  left: 30%;
+  transform: rotate(1deg) translateY(5%);
+}
+.folder-doc[data-i="2"] {
+  left: 57%;
+  transform: rotate(6deg) translateY(10%);
+}
+
+.work-folder.is-open .folder-doc[data-i="0"] {
+  transform: rotate(-8deg) translateY(-24%);
+}
+.work-folder.is-open .folder-doc[data-i="1"] {
+  transform: rotate(0deg) translateY(-34%);
+}
+.work-folder.is-open .folder-doc[data-i="2"] {
+  transform: rotate(7deg) translateY(-21%);
+}
+
+.folder-front {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 74%;
+  border-radius: clamp(16px, 4.6vw, 30px);
+  transform-origin: bottom center;
+  background: linear-gradient(
+    180deg,
+    #ff9e6b 0%,
+    var(--accent) 48%,
+    #e85520 100%
+  );
+  box-shadow:
+    0 34px 80px rgba(255, 107, 53, 0.22),
+    0 20px 44px rgba(0, 0, 0, 0.5);
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.folder-front::after {
+  /* gloss */
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.34) 0%,
+    rgba(255, 255, 255, 0.08) 40%,
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+.work-folder:hover .folder-front,
+.work-folder:focus-visible .folder-front {
+  transform: rotateX(-10deg);
+}
+
+.work-folder.is-open .folder-front {
+  transform: rotateX(-48deg);
+}
+
+/* Morphing custom cursor over the gallery cards (shown/positioned by
+   GSAP; hidden until a card is hovered). */
+.work-cursor {
+  position: fixed;
+  top: -36px;
+  left: -36px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border: 1px solid var(--accent);
+  border-radius: 9999px;
+  background: rgba(10, 10, 10, 0.55);
+  backdrop-filter: blur(4px);
+  color: var(--accent);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: none;
+  opacity: 0;
+}
+
+/* Native cursor hides over cards only once the magnetic JS is active. */
+.magnetic-on .work-panel a {
+  cursor: none;
+}
+
+/* Pinned gallery: panels overlay and crossfade. Without this class
+   (no JS / reduced motion) they stack in normal flow. */
+.gallery-pinned .work-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+
+.gallery-pinned .work-panel:first-child {
+  position: relative;
+}
+
+.work-gallery-static .work-panel + .work-panel,
+.work-stack .work-panel + .work-panel {
+  margin-top: 3rem;
+}
+
+.gallery-pinned .work-panel + .work-panel {
+  margin-top: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .folder-doc,
+  .folder-front {
+    transition: none;
+  }
+}
+
+/* Descriptor pills — large serif-italic chips, thin orange border,
+   subtle glow, six full-viewport marquee rows. */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  padding: 0.42em 1em;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  border-radius: 9999px;
+  font-family: var(--font-display), Georgia, serif;
+  font-style: italic;
+  font-size: clamp(20px, 2.6vw, 40px);
+  color: var(--text-secondary);
+  box-shadow:
+    0 0 14px rgba(255, 107, 53, 0.14),
+    inset 0 0 8px rgba(255, 107, 53, 0.06);
+}
+
+/* ------------------------------------------------------------------ */
+/* Scripture intro (CLAUDE.md §6)                                      */
+/*                                                                     */
+/* An inline script in layout.tsx adds `.intro-active` to <html>       */
+/* before first paint, only when JS runs and motion is allowed. While  */
+/* it is set: scroll is locked and the hero waits hidden behind the     */
+/* overlay. ScriptureIntro swaps `.intro-active` for `.hero-revealing`  */
+/* in a single frame as the veil fades, so the hero rises in sync.      */
+/* Without JS or with reduced motion neither class appears, the overlay */
+/* stays hidden and the hero shows immediately.                        */
+/* ------------------------------------------------------------------ */
+html.intro-active {
+  overflow: hidden;
+}
+
+/* Hero held hidden and static (no running animation) while covered — a
+   paused-from-start CSS animation does not reliably resume, so the reveal
+   is triggered by adding a class rather than un-pausing. */
+html.intro-active .hero-rise {
+  opacity: 0;
+}
+
+/* Pre-hydration / no-JS guard; inert once React mounts ([data-mounted]). */
+html:not(.intro-active) .scripture-intro:not([data-mounted]) {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scripture-intro {
+    display: none;
+  }
+}
+
+.scripture-verse {
+  font-family: var(--font-scripture), serif;
+  font-style: italic;
+}
+
+.scripture-ref {
+  font-family: var(--font-reference), ui-sans-serif, system-ui, sans-serif;
+}
+
+.hebrew-texture {
+  font-family: "Hebrew Background", serif;
+}
+
+/* Character-by-character illumination: each glyph rises in near-black,
+   is lit by the warm scripture tone as it lands, then settles to white.
+   With the per-character stagger this reads as a band of light moving
+   along the verse as it is written. */
+@keyframes char-illuminate {
+  from {
+    opacity: 0;
+    transform: translateY(0.35em);
+    color: var(--border);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(0);
+    color: var(--scripture);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    color: var(--text);
+  }
+}
+
+/* Words stay atomic so lines break between words, never mid-word. */
+.intro-word {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.intro-char {
+  display: inline-block;
+  animation: char-illuminate 1.6s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+
+@keyframes soft-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.soft-fade {
+  animation: soft-fade 0.6s ease-out both;
+}
