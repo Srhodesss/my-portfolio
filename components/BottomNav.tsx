@@ -2,7 +2,7 @@
    "Skills" replaces the old dead Capabilities anchor (CLAUDE.md §6) —
    the Skills section covers that role. */
 const NAV = [
-  { label: "Work", href: "#work" },
+  { label: "Work", href: "/work" },
   { label: "About", href: "#about" },
   { label: "Skills", href: "#skills" },
   { label: "Contact", href: "#contact" },

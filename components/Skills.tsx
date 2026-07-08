@@ -5,34 +5,23 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 /**
- * Skills — replaces the old Capabilities anchor (the nav's Skills link
- * points here). The twelve capabilities from CLAUDE.md §6, grouped.
- * Each category heading carries a thin line that draws in, scrubbed to
- * scroll while its row moves through the active band of the viewport.
- * Reduced motion / no JS: lines drawn, everything static.
+ * Skills — three discipline categories, each listing its software plainly
+ * (no cycling animation). Category headings keep the thin line drawn in
+ * sync with scroll. Reduced motion / no JS: lines drawn, static.
  */
 
-const GROUPS: { title: string; skills: string[] }[] = [
+const GROUPS: { title: string; tools: string[] }[] = [
   {
     title: "Design",
-    skills: ["Product Design", "Industrial Design", "UX/UI"],
+    tools: ["Figma", "InDesign", "Illustrator", "Photoshop", "Procreate"],
   },
   {
-    title: "Engineering & Craft",
-    skills: ["Design Engineering", "CAD & Prototyping", "Computational Design"],
+    title: "Engineering & CAD",
+    tools: ["SolidWorks", "Fusion 360", "Rhino", "Blender", "ANSYS"],
   },
   {
-    title: "Research & Insight",
-    skills: ["User Research", "Data Analysis"],
-  },
-  {
-    title: "Product & Systems",
-    skills: [
-      "Product Strategy",
-      "Product Management",
-      "Workflow Optimisation",
-      "Systems Thinking",
-    ],
+    title: "Data & Code",
+    tools: ["Python", "MATLAB"],
   },
 ];
 
@@ -75,11 +64,12 @@ export default function Skills() {
         Skills
       </p>
 
-      <div className="mt-14 space-y-16 md:space-y-20">
+      <div className="mt-12 space-y-16 md:space-y-20">
         {GROUPS.map((group) => (
           <div
             key={group.title}
-            className="skill-row grid gap-6 lg:grid-cols-[1fr_1.4fr] lg:gap-20"
+            data-reveal
+            className="skill-row grid gap-8 lg:grid-cols-[1fr_1.4fr] lg:gap-20"
           >
             <div>
               <h3 className="text-heading font-semibold tracking-tight">
@@ -89,13 +79,13 @@ export default function Skills() {
                 <div className="skill-line-fill h-px origin-left bg-text-secondary" />
               </div>
             </div>
-            <ul className="space-y-2">
-              {group.skills.map((skill) => (
+            <ul className="flex flex-wrap gap-x-10 gap-y-3 self-center">
+              {group.tools.map((tool) => (
                 <li
-                  key={skill}
+                  key={tool}
                   className="text-body-l leading-relaxed text-text-secondary"
                 >
-                  {skill}
+                  {tool}
                 </li>
               ))}
             </ul>

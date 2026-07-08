@@ -28,7 +28,7 @@ export default function CaseStudyLayout({ project }: { project: Project }) {
   return (
     <article className="mx-auto max-w-5xl px-6 pb-24 pt-16 md:px-12 md:pt-24">
       <Link
-        href="/#work"
+        href="/work"
         className="text-overline uppercase tracking-[0.05em] text-text-muted transition-colors hover:text-accent"
       >
         ← Work

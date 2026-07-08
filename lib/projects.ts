@@ -39,7 +39,7 @@ export const projects: Project[] = [
     impact:
       "A biometric wearable and app that lets ADHD students see their focus — live, and after every session.",
     tags: ["UX Research", "UI Design", "Wearable", "Data Visualisation"],
-    cover: { src: "/work/interax/cover.png", alt: "Interax app interface mockup" },
+    cover: { src: "/work/interax/hero.png", alt: "Interax app interface mockup" },
     sections: [
       {
         heading: "Challenge",
@@ -102,7 +102,7 @@ export const projects: Project[] = [
     impact:
       "A budgeting card that changes colour with your spending — feedback at the moment of payment, not the end of the month.",
     tags: ["Product Design", "Fintech", "UX/UI", "CAD"],
-    cover: { src: "/work/cardo/cover.png", alt: "Cardo card and app mockup" },
+    cover: { src: "/work/cardo/hero.png", alt: "Cardo card and app mockup" },
     sections: [
       {
         heading: "Challenge",
@@ -175,7 +175,7 @@ export const projects: Project[] = [
     title: "AID — Sirho Frames",
     impact: "A rollerblading frame project. Full case study in progress.",
     tags: ["Industrial Design", "Design Engineering", "CAD", "Prototyping"],
-    cover: { src: "/work/aid/cover.png", alt: "Sirho Frames render" },
+    cover: { src: "/work/aid-sirho-frames/hero.jpg", alt: "Sirho Frames render" },
     sections: [
       {
         heading: "Challenge",
@@ -221,7 +221,7 @@ export const projects: Project[] = [
       "User Research",
     ],
     cover: {
-      src: "/work/cuttleswish/cover.png",
+      src: "/work/cuttleswish/hero.png",
       alt: "Cuttleswish automatic pot stirrer",
     },
     sections: [
@@ -281,7 +281,7 @@ export const projects: Project[] = [
       "A refillable aluminium lipstick system that closes the loop on single-use cosmetic packaging.",
     tags: ["Sustainable Design", "Industrial Design", "Packaging", "CAD"],
     cover: {
-      src: "/work/brushed-lips/cover.png",
+      src: "/work/brushed-lips/hero.png",
       alt: "Brushed Lips packaging render",
     },
     sections: [
@@ -330,6 +330,33 @@ export const projects: Project[] = [
         src: "/work/brushed-lips/infographic.png",
         alt: "Brushed Lips closed-loop system infographic",
       },
+    ],
+  },
+  {
+    slug: "verdure",
+    title: "Verdure",
+    impact:
+      "An outdoor plant display, designed and built end-to-end for A-Level product design.",
+    tags: ["Product Design", "CAD", "Prototyping"],
+    cover: { src: "/work/verdure/hero.jpg", alt: "Verdure outdoor plant display" },
+    sections: [
+      {
+        heading: "Context",
+        body: [
+          "Verdure is an outdoor plant display designed and built as an A-Level product design project — an early, complete pass through the whole arc: research, sketching, CAD, and making the real thing.",
+        ],
+      },
+      {
+        heading: "Outcome",
+        body: [
+          "A finished, working display — and the project that made designing and building products feel like the job worth doing.",
+        ],
+      },
+    ],
+    gallery: [
+      { src: "/work/verdure/c1.jpg", alt: "Verdure outdoor plant display, built" },
+      { src: "/work/verdure/c2.jpg", alt: "Verdure display detail" },
+      { src: "/work/verdure/c3.jpg", alt: "Verdure display in place" },
     ],
   },
 ];

@@ -28,7 +28,14 @@ const FADE_DISTANCE = 0.55; // of viewport height scrolled → fully faded
 
 const CHAR_WAVE_MS = 620; // keep in sync with .shimmer-ch duration
 const CHAR_STAGGER_MS = 60;
-const WORD_GAP_MS = 70;
+
+/* Irregular cadence: mostly quick hand-offs, occasionally a longer
+   breath, so the sequence never reads as mechanical. */
+const nextWordGap = () => {
+  const r = Math.random();
+  if (r < 0.12) return 700 + Math.random() * 900; // occasional pause
+  return 30 + Math.random() * 320; // usually quick
+};
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -175,7 +182,7 @@ export default function HeroGlyphField() {
           });
           await sleep(CHAR_WAVE_MS + chars.length * CHAR_STAGGER_MS + 60);
           el.textContent = text;
-          await sleep(WORD_GAP_MS);
+          await sleep(nextWordGap());
         }
       })();
       cleanups.push(() => {

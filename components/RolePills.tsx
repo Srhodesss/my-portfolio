@@ -61,7 +61,7 @@ export default function RolePills() {
         scrollTrigger: {
           trigger: sectionRef.current,
           start: "top top",
-          end: "+=405%",
+          end: "+=290%",
           scrub: true,
           // Pin the inner wrapper (not the section) so GSAP's pin-spacer
           // stays inside this component's DOM, clear of React's
@@ -80,8 +80,8 @@ export default function RolePills() {
         tl.fromTo(
           row,
           { autoAlpha: 0, y: 90 },
-          { autoAlpha: 1, y: 0, duration: 55, ease: "none" },
-          40 + i * 30,
+          { autoAlpha: 1, y: 0, duration: 50, ease: "none" },
+          30 + i * 24,
         );
       });
 
@@ -105,13 +105,12 @@ export default function RolePills() {
         );
       });
 
-      // A viewport-height pause on the finished field, then fade out
-      // before the pin releases.
-      tl.to({}, { duration: 100 }, 245);
+      // A short pause on the finished field, then fade out before release.
+      tl.to({}, { duration: 55 }, 200);
       tl.to(
         [".pills-heading", ...rows],
-        { autoAlpha: 0, duration: 60, ease: "none" },
-        345,
+        { autoAlpha: 0, duration: 35, ease: "none" },
+        255,
       );
     }, sectionRef);
 

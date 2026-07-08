@@ -221,44 +221,49 @@ html.hero-revealing .hero-rise {
   inset: 4% 9% 24% 9%;
 }
 
-/* Square covers stacked with depth — each successive document sits
+/* Documents stacked with depth — square white cards with a thin border
+   framing each cover (papers in a real folder), each successive card
    slightly higher, smaller and darker, receding back into the folder. */
 .folder-doc {
   position: absolute;
   bottom: 0;
   left: 50%;
-  width: 44%;
+  width: 56%;
   aspect-ratio: 1 / 1;
-  overflow: hidden;
-  border-radius: 10px;
+  padding: 6.5%;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
   background: #fff;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
   transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.folder-doc-inner {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
 .folder-doc[data-i="0"] {
   z-index: 3;
-  transform: translate(-50%, 4%) scale(1);
+  transform: translate(-50%, 8%) scale(1);
 }
 .folder-doc[data-i="1"] {
   z-index: 2;
-  filter: brightness(0.8);
-  transform: translate(-50%, -5%) scale(0.92);
+  filter: brightness(0.82);
+  transform: translate(-50%, -2%) scale(0.92);
 }
 .folder-doc[data-i="2"] {
   z-index: 1;
-  filter: brightness(0.62);
-  transform: translate(-50%, -13%) scale(0.84);
+  filter: brightness(0.64);
+  transform: translate(-50%, -11%) scale(0.84);
 }
-
-.work-folder.is-open .folder-doc[data-i="0"] {
-  transform: translate(-50%, -26%) scale(1);
-}
-.work-folder.is-open .folder-doc[data-i="1"] {
-  transform: translate(-50%, -36%) scale(0.92);
-}
-.work-folder.is-open .folder-doc[data-i="2"] {
-  transform: translate(-50%, -44%) scale(0.84);
+.folder-doc[data-i="3"] {
+  z-index: 0;
+  filter: brightness(0.5);
+  transform: translate(-50%, -19%) scale(0.76);
 }
 
 /* When the spring JS drives the folder, CSS transitions step aside. */
@@ -272,6 +277,7 @@ html.hero-revealing .hero-rise {
   left: 0;
   right: 0;
   bottom: 0;
+  z-index: 4; /* always above the document stack */
   height: 74%;
   border-radius: clamp(16px, 4.6vw, 30px);
   transform-origin: bottom center;
@@ -292,6 +298,7 @@ html.hero-revealing .hero-rise {
   content: "";
   position: absolute;
   inset: 2px;
+  z-index: 0;
   border-radius: inherit;
   background: linear-gradient(
     180deg,
@@ -302,13 +309,80 @@ html.hero-revealing .hero-rise {
   pointer-events: none;
 }
 
+/* Embossed "Projects" — matte relief pressed into the folder face:
+   same tonal family as the surface, shaped by opposing highlight and
+   shade shadows rather than gloss. Sits above the sheen layer. */
+.folder-label {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(22px, 3.4vw, 40px);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #ec5f26;
+  text-shadow:
+    0 1px 1px rgba(255, 205, 170, 0.4),
+    0 -1px 2px rgba(140, 45, 10, 0.65);
+}
+
 .work-folder:hover .folder-front,
 .work-folder:focus-visible .folder-front {
   transform: rotateX(-10deg);
 }
 
-.work-folder.is-open .folder-front {
-  transform: rotateX(-48deg);
+/* Site-wide custom cursor: dot locked to the pointer, thin accent ring
+   easing behind. `cursor-on` (added only for fine pointers with motion
+   allowed) hides the native pointer. */
+html.cursor-on,
+html.cursor-on * {
+  cursor: none !important;
+}
+
+.site-cursor-dot,
+.site-cursor-ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.site-cursor-dot {
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 9999px;
+  background: var(--text);
+  transition: scale 0.25s ease;
+}
+
+.site-cursor-ring {
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border: 1px solid color-mix(in srgb, var(--accent) 65%, transparent);
+  border-radius: 9999px;
+  transition:
+    scale 0.3s ease,
+    border-color 0.3s ease;
+}
+
+.site-cursor-dot.cursor-hot {
+  scale: 0.5;
+}
+
+.site-cursor-ring.cursor-hot {
+  scale: 0.72;
+  border-color: var(--accent);
+}
+
+.site-cursor-dot.cursor-suppressed,
+.site-cursor-ring.cursor-suppressed {
+  opacity: 0 !important;
 }
 
 /* Morphing custom cursor over the gallery cards (shown/positioned by
@@ -338,28 +412,6 @@ html.hero-revealing .hero-rise {
 /* Native cursor hides over cards only once the magnetic JS is active. */
 .magnetic-on .work-panel a {
   cursor: none;
-}
-
-/* Pinned gallery: panels overlay and crossfade. Without this class
-   (no JS / reduced motion) they stack in normal flow. */
-.gallery-pinned .work-panel {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-}
-
-.gallery-pinned .work-panel:first-child {
-  position: relative;
-}
-
-.work-gallery-static .work-panel + .work-panel,
-.work-stack .work-panel + .work-panel {
-  margin-top: 3rem;
-}
-
-.gallery-pinned .work-panel + .work-panel {
-  margin-top: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 3000
+    },
+    {
+      "name": "sirho-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8431", "-d", "/Users/sinairhodes/Documents/sirho-frames-site/output"],
+      "port": 8431
     }
   ]
 }

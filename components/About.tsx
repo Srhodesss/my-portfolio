@@ -99,7 +99,7 @@ export default function About() {
         scrollTrigger: {
           trigger: sectionRef.current,
           start: "top top",
-          end: "+=470%",
+          end: "+=320%",
           scrub: true,
           // Inner pin: GSAP's pin-spacer stays inside this component's
           // DOM, clear of React's reconciliation of <main>'s children.
@@ -112,32 +112,60 @@ export default function About() {
         const [from, to] = reveal(seg);
         tl.fromTo(seg, from, to, i * 14);
       });
-      tl.to({}, { duration: 100 }, 62); // pause 1 — one viewport
+      tl.to({}, { duration: 60 }, 62); // pause 1
 
       // Paragraph copy.
       paraSegs.forEach((seg, i) => {
         const [from, to] = reveal(seg);
-        tl.fromTo(seg, from, { ...to, duration: i === 9 ? 32 : 20 }, 162 + i * 11);
+        tl.fromTo(seg, from, { ...to, duration: i === 9 ? 28 : 18 }, 122 + i * 9);
       });
 
-      // Portrait sharpens gradually across most of the section's scroll
-      // while drifting upward toward the top of the viewport, fully
-      // resolved and settled as the section completes.
-      tl.fromTo(
-        ".about-img",
-        { filter: "blur(9px)", scale: 1.04, y: 90 },
-        { filter: "blur(0px)", scale: 1, y: -60, duration: 210, ease: "none" },
-        160,
-      );
+      tl.to({}, { duration: 55 }, 265); // pause 2
 
-      tl.to({}, { duration: 100 }, 370); // pause 2 — one viewport
+      // The drift and focus run on their own catch-up scrub (scrub: 1.8):
+      // GSAP eases toward the scroll position rather than locking 1:1, so
+      // the portrait keeps drifting and resolving for a beat after the
+      // user stops, settling softly. The copy column shares the same
+      // lagged timing so text and image travel together.
+      gsap
+        .timeline({
+          scrollTrigger: {
+            trigger: sectionRef.current,
+            start: "top top",
+            end: "+=320%",
+            scrub: 1.8,
+          },
+        })
+        .fromTo(
+          ".about-img",
+          { filter: "blur(9px)", scale: 1.04, y: 90 },
+          {
+            filter: "blur(0px)",
+            scale: 1,
+            y: -60,
+            duration: 160,
+            ease: "none",
+          },
+          100,
+        )
+        .fromTo(
+          ".about-copy",
+          { y: 40 },
+          { y: -40, duration: 160, ease: "none" },
+          100,
+        )
+        .to({}, { duration: 55 }, 265); // keep total length in sync
     }, sectionRef);
 
     return () => ctx.revert();
   }, []);
 
   return (
-    <section ref={sectionRef} id="about" className="scroll-mt-12">
+    <section
+      ref={sectionRef}
+      id="about"
+      className="scroll-mt-12 overflow-x-clip"
+    >
       <div
         ref={pinRef}
         className="flex min-h-svh flex-col justify-center px-6 py-16 md:px-12 lg:px-20"
@@ -146,8 +174,8 @@ export default function About() {
           About
         </p>
 
-        <div className="mt-12 grid items-center gap-12 lg:grid-cols-2 lg:gap-20">
-          <div>
+        <div className="mt-12 grid items-center gap-12 lg:grid-cols-[1fr_1.25fr] lg:gap-20">
+          <div className="about-copy">
             <p
               className="about-quote font-display italic leading-snug"
               style={{ fontSize: "clamp(28px, 3.2vw, 44px)" }}
@@ -162,12 +190,12 @@ export default function About() {
             </p>
           </div>
 
-          {/* Flush against the right viewport edge (negative margins undo
-              the section padding); rounded on the left corners only.
-              Blurred by default under motion, sharpening at the end of
-              the section's scroll — static and sharp under reduced
-              motion / no JS. */}
-          <div className="about-img relative -mr-6 aspect-[4/5] overflow-hidden rounded-[36px] border border-border bg-black md:-mr-12 lg:-mr-20 lg:w-[94%] lg:justify-self-end">
+          {/* Just under half the viewport wide, rounded on the left
+              corners only, bleeding off the right viewport edge (section
+              clips the overflow). Blurred by default under motion,
+              sharpening across the section's scroll — static and sharp
+              under reduced motion / no JS. */}
+          <div className="about-img relative -mr-10 aspect-[4/5] w-[86%] justify-self-end overflow-hidden rounded-l-[36px] border border-border bg-black md:-mr-16 lg:-mr-[6vw] lg:w-[46vw]">
             <Image
               src="/about/portrait.jpg"
               alt="Portrait of Sinai Rhodes"
