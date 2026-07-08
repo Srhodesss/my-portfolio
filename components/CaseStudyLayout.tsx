@@ -62,7 +62,7 @@ export default function CaseStudyLayout({ project }: { project: Project }) {
 
       <div className="mt-20 space-y-16 md:mt-28 md:space-y-24">
         {project.sections.map((section) => (
-          <section key={section.heading}>
+          <section key={section.heading} data-reveal>
             <h2 className="text-heading font-semibold tracking-tight">
               {section.heading}
             </h2>
@@ -100,7 +100,10 @@ export default function CaseStudyLayout({ project }: { project: Project }) {
       </div>
 
       {project.gallery && project.gallery.length > 0 && (
-        <div className="mt-20 grid gap-6 sm:grid-cols-2 md:mt-28 md:gap-8">
+        <div
+          data-reveal
+          className="mt-20 grid gap-6 sm:grid-cols-2 md:mt-28 md:gap-8"
+        >
           {project.gallery.map((image) => (
             <Figure
               key={image.src}

@@ -121,7 +121,7 @@ export default function RolePills() {
     <section ref={sectionRef} aria-label="Roles">
       <div
         ref={pinRef}
-        className="flex min-h-svh flex-col justify-center overflow-hidden px-6 py-12 md:px-12 lg:px-20"
+        className="flex min-h-svh flex-col justify-center overflow-hidden px-6 py-16 md:px-12 lg:px-20"
       >
         <p
           className="pills-heading font-normal tracking-[-0.01em] text-text-secondary"

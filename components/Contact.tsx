@@ -93,7 +93,7 @@ export default function Contact() {
         </p>
 
         <h2
-          className="mt-10 max-w-[14ch] font-semibold leading-[1.02] tracking-[-0.02em]"
+          className="mt-12 max-w-[14ch] font-semibold leading-[1.02] tracking-[-0.02em]"
           style={{ fontSize: "clamp(44px, 7.5vw, 116px)" }}
         >
           <span className="contact-lead">Let&rsquo;s build something </span>
