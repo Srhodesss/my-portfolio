@@ -553,3 +553,83 @@ html:not(.intro-active) .scripture-intro:not([data-mounted]) {
 .soft-fade {
   animation: soft-fade 0.6s ease-out both;
 }
+
+/* ------------------------------------------------------------------ */
+/* Case study — long-form story                                        */
+/* ------------------------------------------------------------------ */
+.cs-section {
+  padding-block: clamp(72px, 12vh, 160px);
+}
+
+/* Research/insight interlude: a deliberate light, report-like inversion
+   of the dark site, in the Interax palette (navy / lime / off-white). */
+.cs-interlude {
+  --il-bg: #f4f6f3;
+  --il-navy: #17313d;
+  --il-lime: #a9c93f;
+  background: var(--il-bg);
+  color: var(--il-navy);
+}
+.cs-interlude ::selection {
+  background: var(--il-navy);
+  color: var(--il-bg);
+}
+.cs-interlude .cs-eyebrow {
+  color: color-mix(in srgb, var(--il-navy) 55%, transparent);
+}
+.cs-il-card {
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid color-mix(in srgb, var(--il-navy) 12%, transparent);
+  box-shadow: 0 10px 30px rgba(23, 49, 61, 0.06);
+}
+.cs-il-card-navy {
+  border-radius: 14px;
+  background: var(--il-navy);
+  color: #fff;
+}
+.cs-il-tag {
+  display: inline-block;
+  border-radius: 6px 6px 0 0;
+  background: var(--il-lime);
+  color: var(--il-navy);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  padding: 4px 12px;
+}
+.cs-il-rule {
+  height: 2px;
+  background: var(--il-lime);
+}
+
+/* Embeds (LinkedIn / Figma) */
+.cs-embed {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #000;
+  overflow: hidden;
+}
+.cs-embed iframe {
+  display: block;
+  width: 100%;
+  border: 0;
+}
+
+/* Double Diamond — strokes draw / phases light in sequence on scroll.
+   Base state is fully drawn so no-JS and reduced motion show it whole. */
+.dd-phase {
+  transition:
+    opacity 0.5s ease,
+    color 0.5s ease;
+}
+.dd-diamond path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dd-phase {
+    opacity: 1 !important;
+    transition: none;
+  }
+}
