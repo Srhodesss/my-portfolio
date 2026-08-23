@@ -57,7 +57,7 @@ export const WORK_META: Record<string, WorkMeta> = {
       "Budgets live in apps people avoid opening. Overspending doesn't feel like anything at the moment it happens — the feedback arrives weeks later, as a statement.",
     skills: ["Product Design", "Fintech", "UX/UI", "CAD"],
     role: "Product design across hardware and software: the card's form and CAD, and the app's budgeting, diary and savings views.",
-    links: [{ label: "Read the case study", href: "/work/cardo" }],
+    links: [{ label: "View case study", href: "/work/cardo/deck" }],
   },
   "aid-sirho-frames": {
     navLabel: "AID",
@@ -66,7 +66,7 @@ export const WORK_META: Record<string, WorkMeta> = {
     brief: null,
     skills: ["Industrial Design", "Design Engineering", "CAD", "Prototyping"],
     role: null,
-    links: [{ label: "Read the case study", href: "/work/aid-sirho-frames" }],
+    links: [{ label: "View case study", href: "/work/aid-sirho-frames/deck" }],
   },
   cuttleswish: {
     navLabel: "Cuttleswish",
@@ -82,7 +82,7 @@ export const WORK_META: Record<string, WorkMeta> = {
       "User Research",
     ],
     role: "Industrial design and design engineering across the project: user research with elderly cooks, CAD, and the electronics behind the LED-ring interface.",
-    links: [{ label: "Read the case study", href: "/work/cuttleswish" }],
+    links: [{ label: "View case study", href: "/work/cuttleswish/deck" }],
   },
   "brushed-lips": {
     navLabel: "Brushed Lips",
@@ -92,7 +92,7 @@ export const WORK_META: Record<string, WorkMeta> = {
       "Lipstick packaging is designed to be thrown away — a single-use shell around a product people repurchase for years.",
     skills: ["Sustainable Design", "Industrial Design", "Packaging", "CAD"],
     role: null,
-    links: [{ label: "Read the case study", href: "/work/brushed-lips" }],
+    links: [{ label: "View case study", href: "/work/brushed-lips/deck" }],
   },
   verdure: {
     navLabel: "Verdure",
@@ -101,6 +101,7 @@ export const WORK_META: Record<string, WorkMeta> = {
     brief: null,
     skills: ["Product Design", "CAD", "Prototyping"],
     role: null,
+    // No source PDF supplied for Verdure yet, so no slideshow deck.
     links: [{ label: "Read the case study", href: "/work/verdure" }],
   },
 };
