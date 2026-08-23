@@ -214,7 +214,7 @@ html.reveal-ready [data-reveal].is-in {
 /* ------------------------------------------------------------------ */
 .work-folder {
   position: relative;
-  width: min(500px, 76vw);
+  width: min(560px, 62vw);
   aspect-ratio: 6 / 5;
   perspective: 1100px;
   cursor: pointer;
@@ -250,7 +250,7 @@ html.reveal-ready [data-reveal].is-in {
 
 .folder-docs {
   position: absolute;
-  inset: 6% 4% 30% 4%;
+  inset: 16% 4% 26% 4%;
 }
 
 /* Documents stacked with depth — square white cards with a thin border
@@ -278,23 +278,33 @@ html.reveal-ready [data-reveal].is-in {
 }
 
 .folder-doc[data-i="0"] {
-  z-index: 3;
-  transform: translate(-50%, 8%) scale(1);
+  z-index: 5;
+  transform: translate(-50%, 3%) scale(1);
 }
 .folder-doc[data-i="1"] {
-  z-index: 2;
-  filter: brightness(0.82);
-  transform: translate(-50%, -2%) scale(0.93);
+  z-index: 4;
+  filter: brightness(0.86);
+  transform: translate(-50%, 0%) scale(0.975);
 }
 .folder-doc[data-i="2"] {
-  z-index: 1;
-  filter: brightness(0.64);
-  transform: translate(-50%, -11%) scale(0.86);
+  z-index: 3;
+  filter: brightness(0.74);
+  transform: translate(-50%, -3%) scale(0.95);
 }
 .folder-doc[data-i="3"] {
-  z-index: 0;
+  z-index: 2;
+  filter: brightness(0.62);
+  transform: translate(-50%, -6%) scale(0.925);
+}
+.folder-doc[data-i="4"] {
+  z-index: 1;
   filter: brightness(0.5);
-  transform: translate(-50%, -19%) scale(0.79);
+  transform: translate(-50%, -9%) scale(0.9);
+}
+.folder-doc[data-i="5"] {
+  z-index: 0;
+  filter: brightness(0.4);
+  transform: translate(-50%, -12%) scale(0.875);
 }
 
 .folder-front {
@@ -302,8 +312,8 @@ html.reveal-ready [data-reveal].is-in {
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 4; /* always above the document stack */
-  height: 73%;
+  z-index: 20; /* always above the document stack */
+  height: 80%;
   border-radius: clamp(14px, 3.6vw, 22px);
   transform-origin: bottom center;
   /* Matte body: a soft top-lit falloff, no highlight band. */
@@ -448,7 +458,7 @@ html.cursor-on * {
    subtle glow, six full-viewport marquee rows. */
 .pill-slot {
   flex: 0 0 auto;
-  overflow: hidden;
+  /* No overflow clipping — it squared off the pill's rounded glow. */
 }
 
 /* `--glow` (0..1) is written per-pill by the cursor-proximity loop; the

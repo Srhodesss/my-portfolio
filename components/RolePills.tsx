@@ -178,8 +178,8 @@ export default function RolePills() {
         grabX = e.clientX - startRect.left;
         grabY = e.clientY - startRect.top;
 
-        // Freeze the slot's current size, then collapse it so the row
-        // closes the gap while the marquee keeps running.
+        // Freeze the slot at its current size so the gap the pill leaves
+        // stays open the whole time it is held.
         slot.style.width = `${startRect.width}px`;
         slot.style.flex = "0 0 auto";
 
@@ -196,12 +196,6 @@ export default function RolePills() {
           zIndex: "80",
         });
         gsap.to(pill, { scale: 1.06, duration: 0.22, ease: "back.out(2)" });
-        gsap.to(slot, {
-          width: 0,
-          marginRight: 0,
-          duration: 0.32,
-          ease: "power3.out",
-        });
       };
 
       const onMove = (e: PointerEvent) => {
@@ -215,25 +209,22 @@ export default function RolePills() {
         dragging = false;
         // Re-open the slot, then fly the pill to wherever that slot has
         // drifted to and drop it back into the flow.
-        gsap.to(slot, {
-          width: startRect ? startRect.width : "auto",
-          duration: 0.34,
-          ease: "power3.out",
+        // The slot never collapsed, so this is one clean spring straight
+        // back into it — no reopen-then-fly two-stage, which was what
+        // made the return feel laggy.
+        const target = slot.getBoundingClientRect();
+        gsap.to(pill, {
+          left: target.left,
+          top: target.top,
+          scale: 1,
+          duration: 0.5,
+          ease: "elastic.out(1, 0.62)",
+          overwrite: "auto",
           onComplete: () => {
-            const target = slot.getBoundingClientRect();
-            gsap.to(pill, {
-              left: target.left,
-              top: target.top,
-              scale: 1,
-              duration: 0.42,
-              ease: "back.out(1.6)",
-              onComplete: () => {
-                pill.classList.remove("pill-dragging");
-                pill.removeAttribute("style");
-                slot.removeAttribute("style");
-                slot.appendChild(pill);
-              },
-            });
+            pill.classList.remove("pill-dragging");
+            pill.removeAttribute("style");
+            slot.removeAttribute("style");
+            slot.appendChild(pill);
           },
         });
       };

@@ -45,6 +45,16 @@ export default function About() {
     // Character split for "forward."
     const charSplit = splitText(charsEl, { chars: true, words: false });
 
+    // The CSS gate hides the PARENT so unsplit text never flashes. Once
+    // the split exists, hide the pieces and hand the parent back — the
+    // animations below drive the pieces. (Leaving the parent hidden is
+    // what made this copy vanish entirely.)
+    [...wordSplit.words, ...charSplit.chars].forEach((el) => {
+      (el as HTMLElement).style.opacity = "0";
+    });
+    wordsEl.style.opacity = "1";
+    charsEl.style.opacity = "1";
+
     const enter = "bottom-=12% top";
 
     const wordAnim = animate(wordSplit.words, {
@@ -67,9 +77,10 @@ export default function About() {
     });
 
     // Supporting copy: one block, all at once.
+    // Opacity only — the drift effect below owns `transform`, so both
+    // writing it each frame would fight.
     const copyAnim = animate(copyEl, {
       opacity: [0, 1],
-      y: [20, 0],
       duration: 800,
       ease: "out(3)",
       autoplay: onScroll({
@@ -81,7 +92,6 @@ export default function About() {
 
     const imgAnim = animate(imgEl, {
       opacity: [0, 1],
-      scale: [1.03, 1],
       duration: 900,
       ease: "out(3)",
       autoplay: onScroll({ target: imgEl, enter: "bottom-=10% top", repeat: false }),
@@ -92,6 +102,44 @@ export default function About() {
       wordSplit.revert();
       charSplit.revert();
       section.classList.remove("about-live");
+    };
+  }, []);
+
+  /* Differential drift + focus. Everything rises as the section passes,
+     but at different rates — heading slowest, copy a little quicker, the
+     portrait quicker still — so the block reads with depth rather than
+     moving as one slab. The portrait also resolves from soft to sharp.
+     (Page scroll speed itself is handled by ScrollPacing.) */
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const section = sectionRef.current!;
+    const head = section.querySelector<HTMLElement>(".about-quote")!;
+    const copy = section.querySelector<HTMLElement>(".about-copy")!;
+    const img = section.querySelector<HTMLElement>(".about-img")!;
+
+    let raf = 0;
+    const frame = () => {
+      raf = requestAnimationFrame(frame);
+      const r = section.getBoundingClientRect();
+      const vh = window.innerHeight;
+      if (r.bottom < -200 || r.top > vh + 200) return;
+      // 0 as the section enters the bottom, 1 as it leaves the top.
+      const p = Math.min(1, Math.max(0, (vh - r.top) / (vh + r.height)));
+      const t = p - 0.5;
+      head.style.transform = `translate3d(0, ${(-t * 34).toFixed(2)}px, 0)`;
+      copy.style.transform = `translate3d(0, ${(-t * 76).toFixed(2)}px, 0)`;
+      img.style.transform = `translate3d(0, ${(-t * 128).toFixed(2)}px, 0)`;
+      // Soft -> sharp across the first two-thirds of the pass.
+      const focus = Math.min(1, Math.max(0, (p - 0.1) / 0.45));
+      img.style.filter = `blur(${((1 - focus) * 10).toFixed(2)}px)`;
+    };
+    raf = requestAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(raf);
+      [head, copy, img].forEach((el) => {
+        el.style.transform = "";
+        el.style.filter = "";
+      });
     };
   }, []);
 

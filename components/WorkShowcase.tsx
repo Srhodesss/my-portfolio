@@ -22,15 +22,18 @@ import { projects } from "@/lib/projects";
  * Reduced motion: no tweens; the folder rests in its static state.
  */
 
-const DOC_PROJECTS = [...projects.slice(0, 3), projects[5]].filter(Boolean);
+/* Every project gets a card in the folder. */
+const DOC_PROJECTS = projects;
 
 /* Snappy overshoot-and-settle. Short response, small overshoot. */
 const SPRING_IN = { duration: 0.42, ease: "back.out(2.2)" } as const;
 const SPRING_OUT = { duration: 0.34, ease: "back.out(1.3)" } as const;
 const PRESS = { duration: 0.12, ease: "power2.out" } as const;
 
-const REST_DOC_Y = [8, -2, -11, -19];
-const HOVER_DOC_Y = [-3, -13, -22, -30];
+/* At rest the cards sit tucked in, only a sliver above the folder's
+   top edge; hover lifts the stack clear. */
+const REST_DOC_Y = [3, 0, -3, -6, -9, -12];
+const HOVER_DOC_Y = [-14, -19, -24, -29, -34, -39];
 
 export default function WorkShowcase() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -132,7 +135,7 @@ export default function WorkShowcase() {
       <h2
         aria-hidden
         className="work-bg-word pointer-events-none absolute left-0 top-1/2 z-0 w-full -translate-y-1/2 select-none whitespace-nowrap text-center font-semibold leading-none tracking-[-0.04em]"
-        style={{ fontSize: "18.2vw" }}
+        style={{ fontSize: "17.1vw" }}
       >
         Projects
       </h2>

@@ -43,6 +43,14 @@ export default function Contact() {
     const leadSplit = splitText(leadEl, { words: true, chars: false });
     const charSplit = splitText(wordEl, { chars: true, words: false });
 
+    // Hide the split pieces, then hand the parents back — the CSS gate
+    // only exists to stop unsplit text flashing before the split runs.
+    [...leadSplit.words, ...charSplit.chars].forEach((el) => {
+      (el as HTMLElement).style.opacity = "0";
+    });
+    leadEl.style.opacity = "1";
+    wordEl.style.opacity = "1";
+
     const enter = "bottom-=15% top";
 
     const a1 = animate(leadSplit.words, {
