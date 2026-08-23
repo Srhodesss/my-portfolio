@@ -4,6 +4,7 @@ import Contact from "@/components/Contact";
 import Hero from "@/components/Hero";
 import RolePills from "@/components/RolePills";
 import ScriptureIntro from "@/components/ScriptureIntro";
+import ScrollPacing from "@/components/ScrollPacing";
 import Skills from "@/components/Skills";
 import WorkShowcase from "@/components/WorkShowcase";
 
@@ -18,6 +19,7 @@ export default function Home() {
       <Skills />
       <Contact />
       <Closing />
+      <ScrollPacing />
     </main>
   );
 }

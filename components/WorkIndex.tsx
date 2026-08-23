@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import FlipLink from "@/components/FlipLink";
 import RevealText from "@/components/RevealText";
 import { getLenis } from "@/components/SmoothScroll";
 import { projects } from "@/lib/projects";
@@ -132,12 +133,11 @@ export default function WorkIndex() {
   return (
     <div ref={rootRef} className="px-6 pb-32 pt-10 md:px-12 lg:px-20">
       <header className="flex items-baseline justify-between">
-        <Link
+        <FlipLink
           href="/"
-          className="text-overline uppercase tracking-[0.05em] text-text-muted transition-colors hover:text-accent"
-        >
-          ← Home
-        </Link>
+          label="← Home"
+          className="text-overline uppercase tracking-[0.05em] text-text-muted"
+        />
         <span className="text-overline uppercase tracking-[0.05em] text-text-muted">
           {projects.length} projects
         </span>
@@ -167,7 +167,7 @@ export default function WorkIndex() {
                       href={`#${p.slug}`}
                       onClick={goTo(p.slug)}
                       aria-current={isActive ? "true" : undefined}
-                      className={`group flex items-baseline gap-3 py-1.5 text-body-s transition-colors duration-200 ${
+                      className={`flip-link group flex items-baseline gap-3 py-1.5 text-body-s transition-colors duration-200 ${
                         isActive
                           ? "text-accent"
                           : "text-text-muted hover:text-text"
@@ -176,7 +176,19 @@ export default function WorkIndex() {
                       <span className="text-overline tabular-nums opacity-60">
                         {String(i + 1).padStart(2, "0")}
                       </span>
-                      <span>{meta?.navLabel ?? p.title}</span>
+                      <span className="sr-only">
+                        {meta?.navLabel ?? p.title}
+                      </span>
+                      <span className="flip-box" aria-hidden>
+                        <span className="flip-roll">
+                          <span className="flip-face">
+                            {meta?.navLabel ?? p.title}
+                          </span>
+                          <span className="flip-face flip-face-alt">
+                            {meta?.navLabel ?? p.title}
+                          </span>
+                        </span>
+                      </span>
                     </a>
                   </li>
                 );

@@ -712,3 +712,54 @@ html.reveal-ready [data-reveal-text].is-in .rt-inner {
     transform: none !important;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Flip-to-orange nav hover                                             */
+/* Two stacked copies in a clipped box; hover rolls the pair up so the  */
+/* accent copy takes its place.                                         */
+/* ------------------------------------------------------------------ */
+.flip-link {
+  display: inline-block;
+}
+
+.flip-box {
+  display: block;
+  overflow: hidden;
+  /* Descender room without letting the second face show through. */
+  height: 1.15em;
+}
+
+.flip-roll {
+  display: block;
+  transition: transform 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.flip-face {
+  display: block;
+  height: 1.15em;
+  line-height: 1.15em;
+}
+
+.flip-face-alt {
+  color: var(--accent);
+}
+
+.flip-link:hover .flip-roll,
+.flip-link:focus-visible .flip-roll {
+  transform: translateY(-1.15em);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flip-roll {
+    transition: none;
+  }
+  .flip-link:hover .flip-roll,
+  .flip-link:focus-visible .flip-roll {
+    transform: none;
+  }
+  .flip-link:hover .flip-face,
+  .flip-link:focus-visible .flip-face {
+    color: var(--accent);
+  }
+}

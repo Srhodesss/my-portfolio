@@ -8,6 +8,8 @@ const NAV = [
   { label: "Contact", href: "#contact" },
 ];
 
+import FlipLink from "@/components/FlipLink";
+
 export default function BottomNav({ delay }: { delay?: string }) {
   return (
     <nav
@@ -18,12 +20,11 @@ export default function BottomNav({ delay }: { delay?: string }) {
       <ul className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-5">
         {NAV.map(({ label, href }) => (
           <li key={label}>
-            <a
+            <FlipLink
               href={href}
-              className="text-overline uppercase tracking-[0.05em] text-text-muted transition-colors hover:text-accent"
-            >
-              {label}
-            </a>
+              label={label}
+              className="text-overline uppercase tracking-[0.05em] text-text-muted"
+            />
           </li>
         ))}
       </ul>
