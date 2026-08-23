@@ -142,9 +142,9 @@ export default function WorkIndex() {
         anims.push(
           animate(el, {
             opacity: [0, 1],
-            y: [26, 0],
-            duration: 700,
-            delay,
+            y: [10, 0],
+            duration: 460,
+            delay: delay * 0.5,
             ease: "out(3)",
             autoplay: onScroll({ target: sec, enter, repeat: false }),
           }),
@@ -156,9 +156,9 @@ export default function WorkIndex() {
         anims.push(
           animate(fields, {
             opacity: [0, 1],
-            y: [16, 0],
-            duration: 620,
-            delay: stagger(70, { start: 120 }),
+            y: [8, 0],
+            duration: 420,
+            delay: stagger(38, { start: 60 }),
             ease: "out(3)",
             autoplay: onScroll({ target: sec, enter, repeat: false }),
           }),
@@ -214,6 +214,7 @@ export default function WorkIndex() {
       <RevealText
         as="h1"
         text="Projects."
+        stagger={0.016}
         className="mt-16 block font-semibold leading-none tracking-[-0.03em]"
         style={{ fontSize: "clamp(56px, 11vw, 170px)" }}
       />

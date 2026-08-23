@@ -170,7 +170,7 @@ export default function InteraxCaseStudy() {
           more effectively.”
         </blockquote>
 
-        <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="cs-stagger mt-14 grid gap-6 sm:grid-cols-2 md:gap-8">
           {DEFINITION.map((d) => (
             <div
               key={d.k}
@@ -195,7 +195,7 @@ export default function InteraxCaseStudy() {
         title="Contextual trends"
         intro="Diagnoses are rising while support is stretched thin — and the tools students are given fall short."
       >
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="cs-stagger grid gap-8 md:grid-cols-2 lg:gap-10">
           {TRENDS.map((col) => (
             <div key={col.title} data-reveal className="cs-il-card p-6">
               <span className="cs-il-tag">{col.title}</span>
@@ -213,7 +213,7 @@ export default function InteraxCaseStudy() {
         <p className="mt-14 text-overline font-semibold uppercase tracking-[0.05em]">
           Current issues with fidget devices
         </p>
-        <div className="mt-5 grid gap-6 md:grid-cols-3">
+        <div className="cs-stagger mt-6 grid gap-8 md:grid-cols-2 lg:gap-10">
           {FIDGET_ISSUES.map((f) => (
             <div key={f.title} data-reveal className="cs-il-card-navy p-6">
               <span className="cs-il-tag">{f.title}</span>
@@ -232,7 +232,7 @@ export default function InteraxCaseStudy() {
         title="Forecasting ADHD"
         intro="ADHD involves neurobiological differences — including altered serotonin levels that affect mood regulation, decision-making and impulse control. Today's management leans heavily on medication that doesn't address those underlying drivers, and doesn't work uniformly across individuals."
       >
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="cs-stagger grid gap-8 md:grid-cols-2 lg:gap-10">
           {METHODS.map((m) => (
             <div key={m.title} data-reveal className="cs-il-card p-6">
               <div className="cs-il-rule w-10" />
@@ -257,7 +257,7 @@ export default function InteraxCaseStudy() {
         title="Teaching for ADHD"
         intro="Across academic sources and an interview with Angus Nicholson — a teacher of 20+ years — three pillars emerged for helping ADHD students focus and thrive."
       >
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="cs-stagger grid gap-8 md:grid-cols-2 lg:gap-10">
           {PILLARS.map((p, i) => (
             <div key={p.title} data-reveal className="cs-il-card p-6">
               <span className="cs-il-tag">{`0${i + 1}`}</span>
@@ -287,7 +287,7 @@ export default function InteraxCaseStudy() {
         title="User needs"
         intro="Five needs surfaced from research and interviews — each an issue, each with a design response."
       >
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="cs-stagger grid gap-6 md:grid-cols-2 md:gap-8">
           {NEEDS.map((n) => (
             <div key={n.title} data-reveal className="rounded-lg border border-border p-6">
               <h3 className="text-body-l font-semibold">{n.title}</h3>
@@ -338,7 +338,7 @@ export default function InteraxCaseStudy() {
         <p className="mt-14 text-overline font-semibold uppercase tracking-[0.05em] text-text-muted">
           Three key requirements
         </p>
-        <div className="mt-5 grid gap-6 md:grid-cols-3">
+        <div className="cs-stagger mt-6 grid gap-8 md:grid-cols-2 lg:gap-10">
           {REQUIREMENTS.map((r) => (
             <div key={r.title} data-reveal className="rounded-lg border border-border p-6">
               <div className="h-px w-10 bg-accent" />
@@ -366,7 +366,7 @@ export default function InteraxCaseStudy() {
         title="Concept overview"
         intro="The initial concept was a wearable bracelet with two skin-contact electrodes, using EMS to simulate the tactile sensation of a physical fidget device. Four issues drove the refinement."
       >
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="cs-stagger grid gap-6 sm:grid-cols-2 md:gap-8">
           {CONCEPT_ISSUES.map((issue, i) => (
             <div key={i} data-reveal className="rounded-lg border border-border p-6">
               <p className="font-display text-3xl italic text-accent">{`0${i + 1}`}</p>
@@ -387,7 +387,7 @@ export default function InteraxCaseStudy() {
         <p className="text-overline font-semibold uppercase tracking-[0.05em] text-text-muted">
           The Interax sleeve
         </p>
-        <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="cs-stagger mt-6 grid gap-6 md:grid-cols-2 md:gap-8">
           {SLEEVE.map((s) => (
             <div key={s.part} data-reveal className="rounded-lg border border-border p-6">
               <h3 className="text-body-m font-semibold">{s.part}</h3>
