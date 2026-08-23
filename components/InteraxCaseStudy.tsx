@@ -141,7 +141,10 @@ export default function InteraxCaseStudy() {
             Wearable · Data Visualisation
           </p>
 
-          <div className="relative mt-12 aspect-[16/10] overflow-hidden rounded-lg border border-border bg-black md:mt-16">
+          <div
+            data-reveal
+            className="relative mt-12 aspect-[16/10] overflow-hidden rounded-lg border border-border bg-black md:mt-16"
+          >
             <Image
               src="/work/interax/hero.png"
               alt="Interax sleeve and companion app"

@@ -799,3 +799,22 @@ html.reveal-ready [data-reveal-text].is-in .rt-inner {
     color: var(--accent);
   }
 }
+
+/* Projects index — coordinated per-section entrance. Hidden state gated
+   on `wi-live`, added only by JS with motion allowed. */
+.wi-live .wi-head,
+.wi-live .wi-fields,
+.wi-live .wi-links,
+.wi-live .wi-hero {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wi-head,
+  .wi-fields,
+  .wi-links,
+  .wi-hero {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

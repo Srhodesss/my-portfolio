@@ -6,6 +6,7 @@ import { getNextProject } from "@/lib/projects";
 function Figure({ image, sizes }: { image: ProjectImage; sizes: string }) {
   return (
     <div
+      data-reveal
       className={`relative overflow-hidden rounded-lg border border-border bg-black ${
         image.fit === "contain" ? "p-6 md:p-10" : ""
       }`}
@@ -49,7 +50,10 @@ export default function CaseStudyLayout({ project }: { project: Project }) {
         </p>
       </header>
 
-      <div className="relative mt-12 aspect-[16/9] overflow-hidden rounded-lg border border-border bg-black md:mt-16">
+      <div
+        data-reveal
+        className="relative mt-12 aspect-[16/9] overflow-hidden rounded-lg border border-border bg-black md:mt-16"
+      >
         <Image
           src={project.cover.src}
           alt={project.cover.alt}

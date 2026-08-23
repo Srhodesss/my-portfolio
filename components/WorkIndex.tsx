@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import FlipLink from "@/components/FlipLink";
 import RevealText from "@/components/RevealText";
+import { animate, onScroll, stagger } from "animejs";
 import { getLenis } from "@/components/SmoothScroll";
 import { projects } from "@/lib/projects";
 import { WORK_MEDIA, type WorkImage } from "@/lib/work-images";
@@ -118,6 +119,73 @@ export default function WorkIndex() {
     return () => io.disconnect();
   }, []);
 
+  /* A considered per-section entrance: the header settles first, then the
+     fields, links and hero image follow in a short staggered sequence —
+     so moving between projects reads as a composed transition rather than
+     a cut. Reduced motion / no JS: everything is simply visible. */
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const root = rootRef.current!;
+    root.classList.add("wi-live");
+    const anims: { revert?: () => void }[] = [];
+
+    root.querySelectorAll<HTMLElement>("section[id]").forEach((sec) => {
+      const enter = "bottom-=8% top";
+      const seq: [string, number][] = [
+        [".wi-head", 0],
+        [".wi-fields", 90],
+        [".wi-links", 180],
+      ];
+      seq.forEach(([sel, delay]) => {
+        const el = sec.querySelector<HTMLElement>(sel);
+        if (!el) return;
+        anims.push(
+          animate(el, {
+            opacity: [0, 1],
+            y: [26, 0],
+            duration: 700,
+            delay,
+            ease: "out(3)",
+            autoplay: onScroll({ target: sec, enter, repeat: false }),
+          }),
+        );
+      });
+
+      const fields = sec.querySelectorAll<HTMLElement>(".wi-fields > div");
+      if (fields.length) {
+        anims.push(
+          animate(fields, {
+            opacity: [0, 1],
+            y: [16, 0],
+            duration: 620,
+            delay: stagger(70, { start: 120 }),
+            ease: "out(3)",
+            autoplay: onScroll({ target: sec, enter, repeat: false }),
+          }),
+        );
+      }
+
+      const hero = sec.querySelector<HTMLElement>(".wi-hero");
+      if (hero) {
+        anims.push(
+          animate(hero, {
+            opacity: [0, 1],
+            scale: [1.035, 1],
+            duration: 900,
+            delay: 220,
+            ease: "out(3)",
+            autoplay: onScroll({ target: sec, enter, repeat: false }),
+          }),
+        );
+      }
+    });
+
+    return () => {
+      anims.forEach((a) => a.revert?.());
+      root.classList.remove("wi-live");
+    };
+  }, []);
+
   const goTo = (slug: string) => (e: React.MouseEvent) => {
     e.preventDefault();
     const el = document.getElementById(slug);
@@ -209,7 +277,7 @@ export default function WorkIndex() {
                 className="scroll-mt-24"
               >
                 {/* Title + year */}
-                <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-border pb-5">
+                <div className="wi-head flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-border pb-5">
                   <RevealText
                     as="h2"
                     text={project.title}
@@ -230,7 +298,7 @@ export default function WorkIndex() {
                 )}
 
                 {/* Brief / Skills / Role, side by side */}
-                <div className="mt-8 grid gap-8 md:grid-cols-3 md:gap-10">
+                <div className="wi-fields mt-8 grid gap-8 md:grid-cols-3 md:gap-10">
                   <Field label="Brief" value={meta?.brief} />
                   <Field label="Skills">
                     {meta && meta.skills.length > 0 ? (
@@ -248,7 +316,7 @@ export default function WorkIndex() {
 
                 {/* Links */}
                 {meta && meta.links.length > 0 && (
-                  <div className="mt-8 flex flex-wrap gap-x-8 gap-y-3">
+                  <div className="wi-links mt-8 flex flex-wrap gap-x-8 gap-y-3">
                     {meta.links.map((l) =>
                       l.external ? (
                         <a
@@ -290,7 +358,7 @@ export default function WorkIndex() {
                   <div className="mt-12 space-y-4 md:mt-16 md:space-y-6">
                     <Link
                       href={`/work/${project.slug}`}
-                      className="block"
+                      className="wi-hero block"
                       aria-label={`${project.title} case study`}
                     >
                       <Figure
