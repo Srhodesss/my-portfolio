@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import RevealText from "@/components/RevealText";
 
 /**
  * Reusable long-form case-study section shell. `tone="interlude"` switches
@@ -32,20 +33,28 @@ export default function StorySection({
       }`}
     >
       <div className="mx-auto max-w-6xl">
-        <div data-reveal className="max-w-3xl">
+        {/* The heading carries its own per-word reveal; the eyebrow and
+            intro fade separately so the two don't double-animate. */}
+        <div className="max-w-3xl">
           {eyebrow && (
-            <p className="cs-eyebrow text-overline uppercase tracking-[0.05em] text-text-muted">
+            <p
+              data-reveal
+              className="cs-eyebrow text-overline uppercase tracking-[0.05em] text-text-muted"
+            >
               {eyebrow}
             </p>
           )}
-          <h2
-            className="mt-4 font-semibold leading-[1.05] tracking-[-0.02em]"
+          <RevealText
+            as="h2"
+            text={title}
+            className="mt-4 block font-semibold leading-[1.05] tracking-[-0.02em]"
             style={{ fontSize: "clamp(30px, 4.5vw, 60px)" }}
-          >
-            {title}
-          </h2>
+          />
           {intro && (
-            <div className="mt-6 text-body-m leading-relaxed opacity-80">
+            <div
+              data-reveal
+              className="mt-6 text-body-m leading-relaxed opacity-80"
+            >
               {intro}
             </div>
           )}

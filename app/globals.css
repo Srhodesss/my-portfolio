@@ -206,59 +206,66 @@ html.reveal-ready [data-reveal].is-in {
 }
 
 /* ------------------------------------------------------------------ */
-/* Work folder + gallery                                               */
-/* Large glossy folder in the accent orange, Apple-icon style: darker   */
-/* back panel with a tab, project covers peeking out, and a glossy      */
-/* front that tips open in 3D.                                          */
+/* Work folder                                                          */
+/* A small, confident physical object: matte accent-orange finish (no   */
+/* specular gloss), layered elevation shadows, considered proportions.  */
+/* Spring physics live in WorkShowcase.tsx; CSS holds the rest state so */
+/* no-JS and reduced-motion render it correctly.                        */
 /* ------------------------------------------------------------------ */
 .work-folder {
   position: relative;
-  width: min(560px, 74vw);
-  aspect-ratio: 10 / 7;
-  perspective: 1200px;
+  width: min(400px, 66vw);
+  aspect-ratio: 13 / 9;
+  perspective: 1100px;
   cursor: pointer;
+  /* Layered elevation: contact shadow, mid lift, ambient spread, plus a
+     faint warm bloom so it separates from the wordmark behind it. */
+  filter:
+    drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5))
+    drop-shadow(0 14px 22px rgba(0, 0, 0, 0.45))
+    drop-shadow(0 34px 60px rgba(0, 0, 0, 0.4))
+    drop-shadow(0 18px 46px rgba(255, 107, 53, 0.14));
 }
 
 .folder-back {
   position: absolute;
-  inset: 6% 0 0 0;
-  border-radius: clamp(16px, 4.6vw, 30px);
-  background: linear-gradient(180deg, #e0551f 0%, #bf4314 100%);
-  box-shadow: inset 0 2px 6px rgba(255, 255, 255, 0.18);
+  inset: 7% 0 0 0;
+  border-radius: clamp(14px, 3.6vw, 22px);
+  /* Matte: shallow, low-contrast gradient — diffuse, not glossy. */
+  background: linear-gradient(178deg, #c84a19 0%, #b04113 100%);
 }
 
 .folder-back::before {
   /* tab */
   content: "";
   position: absolute;
-  top: clamp(-22px, -2.6vw, -14px);
+  top: clamp(-20px, -2.3vw, -13px);
   left: 7%;
-  width: 34%;
-  height: clamp(18px, 3.4vw, 30px);
-  border-radius: clamp(10px, 1.8vw, 16px) clamp(10px, 1.8vw, 16px) 0 0;
-  background: linear-gradient(180deg, #e0551f, #d34d1a);
+  width: 33%;
+  height: clamp(16px, 2.9vw, 24px);
+  border-radius: clamp(9px, 1.5vw, 13px) clamp(9px, 1.5vw, 13px) 0 0;
+  background: linear-gradient(180deg, #cb4c1a, #bc4416);
 }
 
 .folder-docs {
   position: absolute;
-  inset: 4% 9% 24% 9%;
+  inset: 5% 9% 25% 9%;
 }
 
 /* Documents stacked with depth — square white cards with a thin border
    framing each cover (papers in a real folder), each successive card
-   slightly higher, smaller and darker, receding back into the folder. */
+   slightly higher, smaller and darker, receding into the folder. */
 .folder-doc {
   position: absolute;
   bottom: 0;
   left: 50%;
-  width: 56%;
+  width: 54%;
   aspect-ratio: 1 / 1;
-  padding: 6.5%;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 12px;
+  padding: 6%;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  border-radius: 10px;
   background: #fff;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
-  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
 }
 
 .folder-doc-inner {
@@ -276,23 +283,17 @@ html.reveal-ready [data-reveal].is-in {
 .folder-doc[data-i="1"] {
   z-index: 2;
   filter: brightness(0.82);
-  transform: translate(-50%, -2%) scale(0.92);
+  transform: translate(-50%, -2%) scale(0.93);
 }
 .folder-doc[data-i="2"] {
   z-index: 1;
   filter: brightness(0.64);
-  transform: translate(-50%, -11%) scale(0.84);
+  transform: translate(-50%, -11%) scale(0.86);
 }
 .folder-doc[data-i="3"] {
   z-index: 0;
   filter: brightness(0.5);
-  transform: translate(-50%, -19%) scale(0.76);
-}
-
-/* When the spring JS drives the folder, CSS transitions step aside. */
-.spring-on .folder-doc,
-.spring-on .folder-front {
-  transition: none;
+  transform: translate(-50%, -19%) scale(0.79);
 }
 
 .folder-front {
@@ -301,40 +302,33 @@ html.reveal-ready [data-reveal].is-in {
   right: 0;
   bottom: 0;
   z-index: 4; /* always above the document stack */
-  height: 74%;
-  border-radius: clamp(16px, 4.6vw, 30px);
+  height: 73%;
+  border-radius: clamp(14px, 3.6vw, 22px);
   transform-origin: bottom center;
-  background: linear-gradient(
-    180deg,
-    #ff9e6b 0%,
-    var(--accent) 48%,
-    #e85520 100%
-  );
-  box-shadow:
-    0 34px 80px rgba(255, 107, 53, 0.22),
-    0 20px 44px rgba(0, 0, 0, 0.5);
-  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  /* Matte body: a soft top-lit falloff, no highlight band. */
+  background: linear-gradient(176deg, #ff7a45 0%, #f4652f 42%, #d9531f 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
 .folder-front::after {
-  /* gloss */
+  /* Very fine matte grain — diffuses the surface, kills any plastic sheen. */
   content: "";
   position: absolute;
-  inset: 2px;
+  inset: 0;
   z-index: 0;
   border-radius: inherit;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.34) 0%,
-    rgba(255, 255, 255, 0.08) 40%,
-    transparent 60%
+  opacity: 0.5;
+  background-image: radial-gradient(
+    rgba(255, 255, 255, 0.055) 0.5px,
+    transparent 0.6px
   );
+  background-size: 3px 3px;
   pointer-events: none;
 }
 
-/* Embossed "Projects" — matte relief pressed into the folder face:
+/* Embossed "Projects" — matte relief pressed into the folder face,
    same tonal family as the surface, shaped by opposing highlight and
-   shade shadows rather than gloss. Sits above the sheen layer. */
+   shade shadows rather than gloss. */
 .folder-label {
   position: absolute;
   inset: 0;
@@ -342,18 +336,23 @@ html.reveal-ready [data-reveal].is-in {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: clamp(22px, 3.4vw, 40px);
+  font-size: clamp(19px, 2.5vw, 29px);
   font-weight: 600;
-  letter-spacing: 0.04em;
-  color: #ec5f26;
+  letter-spacing: 0.03em;
+  color: #e2571f;
   text-shadow:
-    0 1px 1px rgba(255, 205, 170, 0.4),
-    0 -1px 2px rgba(140, 45, 10, 0.65);
+    0 1px 1px rgba(255, 205, 170, 0.34),
+    0 -1px 2px rgba(140, 45, 10, 0.6);
 }
 
-.work-folder:hover .folder-front,
-.work-folder:focus-visible .folder-front {
-  transform: rotateX(-10deg);
+/* When the spring JS drives the folder, CSS transitions step aside. */
+.spring-on .folder-doc,
+.spring-on .folder-front {
+  transition: none;
+}
+
+.work-folder:not(.spring-on *) .folder-front {
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Site-wide custom cursor: dot locked to the pointer, thin accent ring
@@ -631,5 +630,66 @@ html:not(.intro-active) .scripture-intro:not([data-mounted]) {
   .dd-phase {
     opacity: 1 !important;
     transition: none;
+  }
+}
+
+/* About — progress-linked reveal. The pre-frame hidden state is gated on
+   `about-live`, which only JS adds (and never under reduced motion), so
+   no-JS and reduced-motion visitors always see sharp, static copy. */
+.about-live .about-seg {
+  opacity: 0;
+}
+.about-seg,
+.about-img {
+  will-change: opacity, filter, transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .about-seg,
+  .about-img,
+  .about-quote {
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Heading reveal — per-word rise from behind a mask                    */
+/* Fast, tightly staggered, snappy easing (a hair of overshoot).        */
+/* Gated on `reveal-ready` so no-JS / reduced-motion show static text.  */
+/* ------------------------------------------------------------------ */
+.rt-word {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  /* Descender room so the mask never clips g/y/p. */
+  padding-bottom: 0.14em;
+  margin-bottom: -0.14em;
+}
+
+.rt-inner {
+  display: inline-block;
+  will-change: transform, opacity;
+}
+
+html.reveal-ready [data-reveal-text] .rt-inner {
+  opacity: 0;
+  transform: translateY(105%);
+  transition:
+    transform 0.44s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.34s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html.reveal-ready [data-reveal-text].is-in .rt-inner {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rt-inner {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
   }
 }

@@ -2,25 +2,31 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef } from "react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useEffect, useRef, useState } from "react";
+import RevealText from "@/components/RevealText";
+import { getLenis } from "@/components/SmoothScroll";
 import { projects } from "@/lib/projects";
 import { WORK_MEDIA, type WorkImage } from "@/lib/work-images";
+import { WORK_META } from "@/lib/work-meta";
 
 /**
- * /work — editorial project index (juanmora work.html spirit): sharp
- * corners throughout, each project a navigable section. Per project: the
- * Hero image first (linked to the case study), then the curated collage
- * of numeric-prefixed images from raw-assets in their numeric order.
- * Images with real transparency sit in white boxes so cutouts read
- * cleanly on the dark page. Figures clip-reveal as they enter.
+ * /work — an editorial index. A persistent left sidebar lists every
+ * project; each entry anchors to its section on the same page and
+ * highlights as that section becomes current. Each section leads with a
+ * title and year, then three labelled fields side by side (Brief, Skills,
+ * Role) and any live links, followed by the project's gallery.
  *
- * Reduced motion / no JS: everything visible and static.
+ * Visual language is ours, not the reference's: dark ground, orange
+ * accent, Instrument Serif italic for accents, existing type scale, sharp
+ * corners throughout.
+ *
+ * Anchor clicks hand off to Lenis so they don't fight smooth scrolling;
+ * with reduced motion (Lenis disabled) they fall back to an instant jump.
+ * Fields with no confirmed content render as marked TODO placeholders.
  */
 
-/* Editorial column rhythm for collage items, cycling. Literal class
-   strings so Tailwind's scanner sees them. */
+/* Editorial column rhythm for gallery items, cycling. Literal strings so
+   Tailwind's scanner sees them. */
 const SPANS = [
   "md:col-span-12",
   "md:col-span-7",
@@ -40,8 +46,9 @@ function Figure({
 }) {
   return (
     <div
-      className={`wi-figure relative w-full overflow-hidden border border-border ${
-        image.alpha ? "bg-white p-6 md:p-10" : "bg-black"
+      data-reveal
+      className={`relative w-full overflow-hidden border border-border ${
+        image.alpha ? "bg-white" : "bg-black"
       }`}
       style={{ aspectRatio: `${image.w} / ${image.h}` }}
     >
@@ -49,7 +56,7 @@ function Figure({
         src={image.src}
         alt={alt}
         fill
-        sizes="(min-width: 1024px) 88vw, 100vw"
+        sizes="(min-width: 1024px) 76vw, 100vw"
         className={image.alpha ? "object-contain p-6 md:p-10" : "object-cover"}
         priority={eager}
       />
@@ -57,92 +64,70 @@ function Figure({
   );
 }
 
+function Field({
+  label,
+  value,
+  children,
+}: {
+  label: string;
+  value?: string | null;
+  children?: React.ReactNode;
+}) {
+  const missing = !children && !value;
+  return (
+    <div>
+      <p className="text-overline uppercase tracking-[0.08em] text-text-muted">
+        {label}
+      </p>
+      {missing ? (
+        <p className="mt-3 border border-dashed border-text-muted/40 px-3 py-2 text-body-s text-text-muted">
+          <span className="text-accent">TODO</span> — awaiting content
+        </p>
+      ) : (
+        <div className="mt-3 text-body-s leading-relaxed text-text-secondary">
+          {children ?? value}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function WorkIndex() {
   const rootRef = useRef<HTMLDivElement>(null);
-  const cursorRef = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(projects[0]?.slug ?? "");
 
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    gsap.registerPlugin(ScrollTrigger);
-    const root = rootRef.current!;
-    const ctx = gsap.context(() => {
-      gsap.utils.toArray<HTMLElement>(".wi-figure").forEach((figure) => {
-        gsap.fromTo(
-          figure,
-          { autoAlpha: 0, y: 70, clipPath: "inset(12% 0% 12% 0%)" },
-          {
-            autoAlpha: 1,
-            y: 0,
-            clipPath: "inset(0% 0% 0% 0%)",
-            duration: 0.9,
-            ease: "power3.out",
-            scrollTrigger: {
-              trigger: figure,
-              start: "top 82%",
-              toggleActions: "play none none reverse",
-            },
-          },
-        );
-      });
-    }, rootRef);
-
-    /* Magnetic hover + morphing cursor on the linked heroes. */
-    let teardowns: (() => void)[] = [];
-    if (window.matchMedia("(pointer: fine)").matches) {
-      const cursor = cursorRef.current!;
-      root.classList.add("magnetic-on");
-      gsap.set(cursor, { autoAlpha: 0, scale: 0.4 });
-      const xTo = gsap.quickTo(cursor, "x", { duration: 0.22, ease: "power3.out" });
-      const yTo = gsap.quickTo(cursor, "y", { duration: 0.22, ease: "power3.out" });
-      teardowns = gsap.utils
-        .toArray<HTMLElement>(".work-panel a")
-        .map((card) => {
-          const onEnter = () => {
-            gsap.to(cursor, { autoAlpha: 1, scale: 1, duration: 0.3 });
-            gsap.to(card, { scale: 1.02, duration: 0.45, ease: "power3.out" });
-          };
-          const onMove = (e: PointerEvent) => {
-            xTo(e.clientX);
-            yTo(e.clientY);
-            const r = card.getBoundingClientRect();
-            const nx = ((e.clientX - r.left) / r.width) * 2 - 1;
-            const ny = ((e.clientY - r.top) / r.height) * 2 - 1;
-            gsap.to(card, {
-              x: nx * 12,
-              y: ny * 8,
-              duration: 0.5,
-              ease: "power3.out",
-            });
-          };
-          const onLeave = () => {
-            gsap.to(cursor, { autoAlpha: 0, scale: 0.4, duration: 0.3 });
-            gsap.to(card, {
-              x: 0,
-              y: 0,
-              scale: 1,
-              duration: 0.7,
-              ease: "power3.out",
-            });
-          };
-          card.addEventListener("pointerenter", onEnter);
-          card.addEventListener("pointermove", onMove);
-          card.addEventListener("pointerleave", onLeave);
-          return () => {
-            card.removeEventListener("pointerenter", onEnter);
-            card.removeEventListener("pointermove", onMove);
-            card.removeEventListener("pointerleave", onLeave);
-            gsap.killTweensOf(card);
-          };
-        });
-    }
-
-    return () => {
-      root.classList.remove("magnetic-on");
-      teardowns.forEach((fn) => fn());
-      ctx.revert();
-    };
+    const io = new IntersectionObserver(
+      (entries) => {
+        // The section closest to the top of the viewport wins.
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort(
+            (a, b) =>
+              Math.abs(a.boundingClientRect.top) -
+              Math.abs(b.boundingClientRect.top),
+          );
+        if (visible[0]?.target.id) setActive(visible[0].target.id);
+      },
+      { rootMargin: "-20% 0px -60% 0px", threshold: 0 },
+    );
+    rootRef.current
+      ?.querySelectorAll<HTMLElement>("section[id]")
+      .forEach((s) => io.observe(s));
+    return () => io.disconnect();
   }, []);
+
+  const goTo = (slug: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    const el = document.getElementById(slug);
+    if (!el) return;
+    setActive(slug);
+    const lenis = getLenis();
+    // Lenis already honours the section's scroll-margin — no extra offset.
+    if (lenis) lenis.scrollTo(el, { duration: 1.1 });
+    else el.scrollIntoView({ block: "start" });
+    history.replaceState(null, "", `#${slug}`);
+  };
 
   return (
     <div ref={rootRef} className="px-6 pb-32 pt-10 md:px-12 lg:px-20">
@@ -153,84 +138,173 @@ export default function WorkIndex() {
         >
           ← Home
         </Link>
-        <nav aria-label="Projects on this page">
-          <ul className="hidden gap-6 md:flex">
-            {projects.map((p, i) => (
-              <li key={p.slug}>
-                <a
-                  href={`#${p.slug}`}
-                  className="text-overline uppercase tracking-[0.05em] text-text-muted transition-colors hover:text-accent"
-                >
-                  {String(i + 1).padStart(2, "0")}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <span className="text-overline uppercase tracking-[0.05em] text-text-muted">
+          {projects.length} projects
+        </span>
       </header>
 
-      <h1
-        className="mt-16 font-semibold leading-none tracking-[-0.03em]"
+      <RevealText
+        as="h1"
+        text="Work."
+        className="mt-16 block font-semibold leading-none tracking-[-0.03em]"
         style={{ fontSize: "clamp(56px, 11vw, 170px)" }}
-      >
-        Work<span className="font-display font-normal italic">.</span>
-      </h1>
+      />
 
-      <div className="mt-24 space-y-32 md:mt-32 md:space-y-48">
-        {projects.map((project, i) => {
-          const media = WORK_MEDIA[project.slug];
-          return (
-            <section
-              key={project.slug}
-              id={project.slug}
-              className="work-panel scroll-mt-16"
-            >
-              <div className="mb-6 flex items-baseline justify-between gap-4">
-                <h2 className="text-heading font-semibold tracking-tight">
-                  {project.title}
-                </h2>
-                <span className="text-overline tracking-[0.05em] text-text-muted">
-                  {String(i + 1).padStart(2, "0")} /{" "}
-                  {String(projects.length).padStart(2, "0")}
-                </span>
-              </div>
+      <div className="mt-20 gap-16 lg:grid lg:grid-cols-[180px_1fr] lg:gap-20 xl:grid-cols-[220px_1fr]">
+        {/* Persistent sidebar */}
+        <nav aria-label="Projects" className="hidden lg:block">
+          <div className="sticky top-24">
+            <p className="text-overline uppercase tracking-[0.08em] text-text-muted">
+              Index
+            </p>
+            <ul className="mt-5 space-y-1">
+              {projects.map((p, i) => {
+                const meta = WORK_META[p.slug];
+                const isActive = active === p.slug;
+                return (
+                  <li key={p.slug}>
+                    <a
+                      href={`#${p.slug}`}
+                      onClick={goTo(p.slug)}
+                      aria-current={isActive ? "true" : undefined}
+                      className={`group flex items-baseline gap-3 py-1.5 text-body-s transition-colors duration-200 ${
+                        isActive
+                          ? "text-accent"
+                          : "text-text-muted hover:text-text"
+                      }`}
+                    >
+                      <span className="text-overline tabular-nums opacity-60">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <span>{meta?.navLabel ?? p.title}</span>
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </nav>
 
-              <Link href={`/work/${project.slug}`} className="group block">
-                <Figure
-                  image={media.hero}
-                  alt={project.cover.alt}
-                  eager={i === 0}
-                />
-                <div className="mt-5 flex flex-wrap items-baseline justify-between gap-4">
-                  <p className="max-w-2xl text-body-s text-text-secondary">
-                    {project.impact}
-                  </p>
-                  <p className="text-overline uppercase tracking-[0.05em] text-text-muted">
-                    {project.tags.join(" · ")}
-                  </p>
+        {/* Project sections */}
+        <div className="space-y-28 md:space-y-40">
+          {projects.map((project, i) => {
+            const media = WORK_MEDIA[project.slug];
+            const meta = WORK_META[project.slug];
+            return (
+              <section
+                key={project.slug}
+                id={project.slug}
+                className="scroll-mt-24"
+              >
+                {/* Title + year */}
+                <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-border pb-5">
+                  <RevealText
+                    as="h2"
+                    text={project.title}
+                    className="block font-semibold tracking-tight"
+                    style={{ fontSize: "clamp(28px, 3.4vw, 48px)" }}
+                  />
+                  <span className="font-display text-body-l italic text-text-muted">
+                    {meta?.year ?? (
+                      <span className="text-accent">TODO</span>
+                    )}
+                  </span>
                 </div>
-              </Link>
 
-              {media.collage.length > 0 && (
-                <div className="mt-8 grid grid-cols-1 items-end gap-4 md:mt-10 md:grid-cols-12 md:gap-6">
-                  {media.collage.map((image, j) => (
-                    <div key={image.src} className={SPANS[j % SPANS.length]}>
+                {meta?.module && (
+                  <p className="mt-4 text-overline uppercase tracking-[0.05em] text-text-muted">
+                    {meta.module}
+                  </p>
+                )}
+
+                {/* Brief / Skills / Role, side by side */}
+                <div className="mt-8 grid gap-8 md:grid-cols-3 md:gap-10">
+                  <Field label="Brief" value={meta?.brief} />
+                  <Field label="Skills">
+                    {meta && meta.skills.length > 0 ? (
+                      <ul className="flex flex-wrap gap-x-3 gap-y-1.5">
+                        {meta.skills.map((s) => (
+                          <li key={s} className="after:ml-3 after:text-text-muted after:content-['·'] last:after:content-['']">
+                            {s}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : undefined}
+                  </Field>
+                  <Field label="Role" value={meta?.role} />
+                </div>
+
+                {/* Links */}
+                {meta && meta.links.length > 0 && (
+                  <div className="mt-8 flex flex-wrap gap-x-8 gap-y-3">
+                    {meta.links.map((l) =>
+                      l.external ? (
+                        <a
+                          key={l.label}
+                          href={l.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="group inline-flex items-baseline gap-2 text-body-s font-medium transition-colors hover:text-accent"
+                        >
+                          {l.label}
+                          <span
+                            aria-hidden
+                            className="text-accent transition-transform duration-300 group-hover:translate-x-1"
+                          >
+                            ↗
+                          </span>
+                        </a>
+                      ) : (
+                        <Link
+                          key={l.label}
+                          href={l.href}
+                          className="group inline-flex items-baseline gap-2 text-body-s font-medium transition-colors hover:text-accent"
+                        >
+                          {l.label}
+                          <span
+                            aria-hidden
+                            className="text-accent transition-transform duration-300 group-hover:translate-x-1"
+                          >
+                            →
+                          </span>
+                        </Link>
+                      ),
+                    )}
+                  </div>
+                )}
+
+                {/* Gallery — hero then numbered collage, sharp corners */}
+                {media && (
+                  <div className="mt-12 space-y-4 md:mt-16 md:space-y-6">
+                    <Link
+                      href={`/work/${project.slug}`}
+                      className="block"
+                      aria-label={`${project.title} case study`}
+                    >
                       <Figure
-                        image={image}
-                        alt={`${project.title} — image ${j + 1}`}
+                        image={media.hero}
+                        alt={project.cover.alt}
+                        eager={i === 0}
                       />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-          );
-        })}
-      </div>
-
-      {/* Morphing cursor for the linked heroes */}
-      <div ref={cursorRef} aria-hidden className="work-cursor">
-        View
+                    </Link>
+                    {media.collage.length > 0 && (
+                      <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-12 md:gap-6">
+                        {media.collage.map((image, j) => (
+                          <div key={image.src} className={SPANS[j % SPANS.length]}>
+                            <Figure
+                              image={image}
+                              alt={`${project.title} — image ${j + 1}`}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

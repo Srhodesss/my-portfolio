@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import RevealText from "@/components/RevealText";
 
 /**
  * Skills — three discipline categories, each listing its software plainly
@@ -68,13 +69,14 @@ export default function Skills() {
         {GROUPS.map((group) => (
           <div
             key={group.title}
-            data-reveal
             className="skill-row grid gap-8 lg:grid-cols-[1fr_1.4fr] lg:gap-20"
           >
             <div>
-              <h3 className="text-heading font-semibold tracking-tight">
-                {group.title}
-              </h3>
+              <RevealText
+                as="h3"
+                text={group.title}
+                className="block text-heading font-semibold tracking-tight"
+              />
               <div className="mt-5 h-px w-full bg-white/10">
                 <div className="skill-line-fill h-px origin-left bg-text-secondary" />
               </div>

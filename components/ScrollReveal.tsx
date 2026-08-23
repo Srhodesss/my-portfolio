@@ -35,7 +35,9 @@ export default function ScrollReveal() {
       { rootMargin: "0px 0px -10% 0px", threshold: 0.05 },
     );
 
-    const els = document.querySelectorAll<HTMLElement>("[data-reveal]");
+    const els = document.querySelectorAll<HTMLElement>(
+      "[data-reveal], [data-reveal-text]",
+    );
     els.forEach((el) => {
       // Anything already in view on load reveals immediately (no flash-in
       // of above-the-fold content on navigation).

@@ -66,7 +66,7 @@ export default function Contact() {
         tl.fromTo(
           ch,
           { autoAlpha: 0, y: 26 },
-          { autoAlpha: 1, y: 0, duration: 14, ease: "none" },
+          { autoAlpha: 1, y: 0, duration: 14, ease: "power3.out" },
           4 + i * 6,
         );
       });

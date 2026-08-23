@@ -2,27 +2,30 @@
 
 import Image from "next/image";
 import { Fragment, useEffect, useRef } from "react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 /**
- * About — pinned, scroll-scrubbed reveal. Each phrase eases from blurred
- * and left-shifted to sharp and settled (a slight rightward drift);
- * "forward." carries extra travel to underline the word. Scrub means the
- * whole thing reverses naturally when scrolling back up, and the pin
- * (+150% scroll) gives the section a comfortable dwell before release.
+ * About — no pin. Everything is driven continuously by the section's
+ * scroll progress (anime.js `onScroll` style: progress-linked, not
+ * enter/exit triggers), so scrubbing up or down responds frame by frame.
+ *
+ * Motion:
+ *  - Copy and portrait share one transform, so they travel upward at the
+ *    same pace. The travel curve is y = a·t + b·t³ (t = progress − 0.5),
+ *    whose slope is smallest at the centre of the viewport and steepest
+ *    at the edges — it slows through the middle without ever stopping.
+ *  - The applied value is lerped toward the scroll-derived target each
+ *    frame, so it eases to scroll position rather than locking to it.
+ *  - Each phrase resolves continuously across its own slice of progress:
+ *    opacity, blur, offset and weight all interpolate (Instrument Sans is
+ *    a variable font, so weight animates smoothly).
  *
  * Copy is verbatim from CLAUDE.md §6, split into phrase spans only.
- * Reduced motion / no JS: everything fully visible and static.
+ * Reduced motion / no JS: everything visible, sharp and static.
  */
 
 type Seg = { text: string; emph?: boolean };
 
-const QUOTE: Seg[] = [
-  { text: "Engineering products" },
-  { text: "that move people" },
-  { text: "forward.", emph: true },
-];
+const QUOTE_LINE = "Engineering products that move people forward.";
 
 const PARA_1: Seg[] = [
   { text: "I’m a creative problem solver," },
@@ -44,6 +47,15 @@ const PARA_2: Seg[] = [
   { text: "that serve people well." },
 ];
 
+/* Shared travel curve: gentle through the centre, quicker at the edges. */
+const TRAVEL = 118; // px of total drift across the section
+const travelAt = (p: number) => {
+  const t = Math.min(1, Math.max(0, p)) - 0.5;
+  return -(0.45 * t + 2.2 * t * t * t) * TRAVEL * 2;
+};
+
+const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+
 function Segments({ segs }: { segs: Seg[] }) {
   return (
     <>
@@ -64,143 +76,113 @@ function Segments({ segs }: { segs: Seg[] }) {
 
 export default function About() {
   const sectionRef = useRef<HTMLElement>(null);
-  const pinRef = useRef<HTMLDivElement>(null);
+  const driftRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-    gsap.registerPlugin(ScrollTrigger);
-    const ctx = gsap.context(() => {
-      // Durations are in "percent of one viewport of scroll" — the
-      // ScrollTrigger end matches the timeline total, so a 100-unit pause
-      // is one full viewport of dwell.
-      const quoteSegs = gsap.utils.toArray<HTMLElement>(
-        ".about-quote .about-seg",
+    const section = sectionRef.current!;
+    const drift = driftRef.current!;
+    const img = imgRef.current!;
+    const segs = Array.from(
+      section.querySelectorAll<HTMLElement>(".about-seg"),
+    );
+    const quote = section.querySelector<HTMLElement>(".about-quote");
+
+    section.classList.add("about-live");
+
+    let raf = 0;
+    let eased = -1; // lerped progress; -1 = uninitialised
+
+    const frame = () => {
+      const rect = section.getBoundingClientRect();
+      const vh = window.innerHeight;
+      // 0 as the section's top reaches the bottom of the viewport,
+      // 1 as its bottom leaves the top.
+      const target = clamp01(
+        (vh - rect.top) / (vh + rect.height) || 0,
       );
-      const paraSegs = gsap.utils
-        .toArray<HTMLElement>(".about-seg")
-        .filter((s) => !quoteSegs.includes(s));
 
-      const reveal = (seg: HTMLElement) => {
-        const emph = seg.hasAttribute("data-emph");
-        return [
-          { autoAlpha: 0, x: emph ? -60 : -18, filter: "blur(10px)" },
-          {
-            autoAlpha: 1,
-            x: 0,
-            filter: "blur(0px)",
-            duration: emph ? 34 : 22,
-            ease: "none" as const,
-          },
-        ];
-      };
+      // Ease toward the scroll position rather than snapping to it.
+      eased = eased < 0 ? target : eased + (target - eased) * 0.14;
 
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: sectionRef.current,
-          start: "top top",
-          end: "+=320%",
-          scrub: true,
-          // Inner pin: GSAP's pin-spacer stays inside this component's
-          // DOM, clear of React's reconciliation of <main>'s children.
-          pin: pinRef.current,
-        },
+      drift.style.transform = `translate3d(0, ${travelAt(eased).toFixed(2)}px, 0)`;
+
+      // Portrait resolves from soft to sharp across the first two-thirds.
+      const focus = clamp01((eased - 0.12) / 0.5);
+      img.style.filter = `blur(${((1 - focus) * 9).toFixed(2)}px)`;
+      img.style.transform = `scale(${(1 + (1 - focus) * 0.035).toFixed(4)})`;
+
+      // Per-phrase continuous resolve across staggered windows.
+      const span = 0.5 / Math.max(1, segs.length);
+      segs.forEach((el, i) => {
+        const start = 0.1 + i * span * 0.85;
+        const p = clamp01((eased - start) / 0.16);
+        el.style.opacity = String(p);
+        el.style.filter = `blur(${((1 - p) * 7).toFixed(2)}px)`;
+        const shift = el.hasAttribute("data-emph") ? 42 : 14;
+        el.style.transform = `translate3d(${(-(1 - p) * shift).toFixed(2)}px,0,0)`;
       });
 
-      // Pull quote reveals, then a breath on that line alone.
-      quoteSegs.forEach((seg, i) => {
-        const [from, to] = reveal(seg);
-        tl.fromTo(seg, from, to, i * 14);
-      });
-      tl.to({}, { duration: 60 }, 62); // pause 1
+      if (quote) {
+        const q = clamp01((eased - 0.04) / 0.22);
+        quote.style.opacity = String(0.25 + q * 0.75);
+        quote.style.fontVariationSettings = `"wght" ${(360 + q * 80).toFixed(0)}`;
+      }
 
-      // Paragraph copy.
-      paraSegs.forEach((seg, i) => {
-        const [from, to] = reveal(seg);
-        tl.fromTo(seg, from, { ...to, duration: i === 9 ? 28 : 18 }, 122 + i * 9);
-      });
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
 
-      tl.to({}, { duration: 55 }, 265); // pause 2
-
-      // The drift and focus run on their own catch-up scrub (scrub: 1.8):
-      // GSAP eases toward the scroll position rather than locking 1:1, so
-      // the portrait keeps drifting and resolving for a beat after the
-      // user stops, settling softly. The copy column shares the same
-      // lagged timing so text and image travel together.
-      gsap
-        .timeline({
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: "top top",
-            end: "+=320%",
-            scrub: 1.8,
-          },
-        })
-        .fromTo(
-          ".about-img",
-          { filter: "blur(9px)", scale: 1.04, y: 90 },
-          {
-            filter: "blur(0px)",
-            scale: 1,
-            y: -60,
-            duration: 160,
-            ease: "none",
-          },
-          100,
-        )
-        .fromTo(
-          ".about-copy",
-          { y: 40 },
-          { y: -40, duration: 160, ease: "none" },
-          100,
-        )
-        .to({}, { duration: 55 }, 265); // keep total length in sync
-    }, sectionRef);
-
-    return () => ctx.revert();
+    return () => {
+      cancelAnimationFrame(raf);
+      section.classList.remove("about-live");
+    };
   }, []);
 
   return (
     <section
       ref={sectionRef}
       id="about"
-      className="scroll-mt-12 overflow-x-clip"
+      className="scroll-mt-12 overflow-x-clip py-28 md:py-40"
     >
-      <div
-        ref={pinRef}
-        className="flex min-h-svh flex-col justify-center px-6 py-16 md:px-12 lg:px-20"
-      >
-        <p className="text-overline uppercase tracking-[0.05em] text-text-muted">
+      <div ref={driftRef} className="will-change-transform">
+        <p className="px-6 text-overline uppercase tracking-[0.05em] text-text-muted md:px-12 lg:px-20">
           About
         </p>
 
-        <div className="mt-12 grid items-center gap-12 lg:grid-cols-[1fr_1.25fr] lg:gap-20">
+        {/* Single line from md up: the size is set in vw so the ratio of
+            text width to container width is fixed — if it fits at one
+            width it fits at every width. Wraps only on small screens. */}
+        <p
+          className="about-quote mt-10 px-6 font-display italic leading-[1.08] tracking-[-0.02em] md:whitespace-nowrap md:px-12 lg:px-20"
+          style={{ fontSize: "clamp(26px, 3.15vw, 46px)" }}
+        >
+          {QUOTE_LINE}
+        </p>
+
+        <div className="mt-16 grid items-center gap-12 px-6 md:mt-20 md:px-12 lg:grid-cols-[1fr_1.1fr] lg:gap-20 lg:px-20">
           <div className="about-copy">
-            <p
-              className="about-quote font-display italic leading-snug"
-              style={{ fontSize: "clamp(28px, 3.2vw, 44px)" }}
-            >
-              <Segments segs={QUOTE} />
-            </p>
-            <p className="mt-8 max-w-[60ch] text-body-m leading-relaxed text-text-secondary">
+            <p className="max-w-[54ch] text-body-m leading-relaxed text-text-secondary">
               <Segments segs={PARA_1} />
             </p>
-            <p className="mt-5 max-w-[60ch] text-body-m leading-relaxed text-text-secondary">
+            <p className="mt-5 max-w-[54ch] text-body-m leading-relaxed text-text-secondary">
               <Segments segs={PARA_2} />
             </p>
           </div>
 
-          {/* Just under half the viewport wide, rounded on the left
-              corners only, bleeding off the right viewport edge (section
-              clips the overflow). Blurred by default under motion,
-              sharpening across the section's scroll — static and sharp
-              under reduced motion / no JS. */}
-          <div className="about-img relative -mr-10 aspect-[4/5] w-[86%] justify-self-end overflow-hidden rounded-l-[36px] border border-border bg-black md:-mr-16 lg:-mr-[6vw] lg:w-[46vw]">
+          {/* Just under half the viewport, rounded on the left corners
+              only, bleeding off the right edge (section clips overflow). */}
+          <div
+            ref={imgRef}
+            className="about-img relative -mr-10 aspect-[4/5] w-[86%] justify-self-end overflow-hidden rounded-l-[36px] border border-border bg-black will-change-transform md:-mr-16 lg:-mr-[6vw] lg:w-[46vw]"
+          >
             <Image
               src="/about/portrait.jpg"
               alt="Portrait of Sinai Rhodes"
               fill
-              sizes="(min-width: 1024px) 44vw, 100vw"
+              sizes="(min-width: 1024px) 46vw, 100vw"
               className="object-cover"
               style={{ objectPosition: "50% 100%" }}
               priority
