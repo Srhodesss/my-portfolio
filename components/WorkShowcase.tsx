@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
+import { animate, onScroll } from "animejs";
 import { projects } from "@/lib/projects";
 
 /**
@@ -42,6 +43,22 @@ export default function WorkShowcase() {
     const front = section.querySelector<HTMLElement>(".folder-front")!;
     const docs = Array.from(section.querySelectorAll<HTMLElement>(".folder-doc"));
     section.classList.add("spring-on");
+
+    // Wordmark colour: transparent grey -> transparent orange, tied to
+    // scroll position through the section.
+    const word = section.querySelector<HTMLElement>(".work-bg-word");
+    const colourAnim = word
+      ? animate(word, {
+          color: ["rgba(160,160,160,0.10)", "rgba(255,107,53,0.30)"],
+          ease: "linear",
+          autoplay: onScroll({
+            target: section,
+            enter: "bottom top",
+            leave: "top bottom",
+            sync: true,
+          }),
+        })
+      : null;
 
     let pressed = false;
 
@@ -98,6 +115,7 @@ export default function WorkShowcase() {
       folder.removeEventListener("pointerup", onUp);
       folder.removeEventListener("focus", onEnter);
       folder.removeEventListener("blur", onLeave);
+      colourAnim?.revert?.();
       gsap.killTweensOf([folder, front, ...docs]);
     };
   }, []);
@@ -108,15 +126,17 @@ export default function WorkShowcase() {
       id="work"
       className="relative scroll-mt-12 overflow-hidden px-6 py-28 md:px-12 md:py-40 lg:px-20"
     >
-      {/* Background wordmark — explicitly behind (z-0). */}
+      {/* Background wordmark — explicitly behind (z-0), spanning the full
+          page width. Its colour scrubs from transparent grey to
+          transparent orange as the section moves through the viewport. */}
       <h2
         aria-hidden
-        className="pointer-events-none absolute left-1/2 top-1/2 z-0 -translate-x-1/2 -translate-y-1/2 select-none whitespace-nowrap font-semibold leading-none tracking-[-0.03em] text-white/[0.09]"
-        style={{ fontSize: "clamp(96px, 19vw, 300px)" }}
+        className="work-bg-word pointer-events-none absolute left-0 top-1/2 z-0 w-full -translate-y-1/2 select-none whitespace-nowrap text-center font-semibold leading-none tracking-[-0.04em]"
+        style={{ fontSize: "18.2vw" }}
       >
-        Work<span className="font-display font-normal italic">.</span>
+        Projects
       </h2>
-      <span className="sr-only">Work</span>
+      <span className="sr-only">Projects</span>
 
       {/* Folder — explicitly in front (z-10). */}
       <div className="relative z-10 flex flex-col items-center">
@@ -143,7 +163,7 @@ export default function WorkShowcase() {
             ))}
           </span>
           <span aria-hidden className="folder-front">
-            <span className="folder-label">Projects</span>
+            <span className="folder-label">SR&rsquo;s Stuff</span>
           </span>
         </Link>
 

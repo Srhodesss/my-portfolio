@@ -31,7 +31,7 @@ export default function CaseStudyLayout({ project }: { project: Project }) {
         href="/work"
         className="text-overline uppercase tracking-[0.05em] text-text-muted transition-colors hover:text-accent"
       >
-        ← Work
+        ← Projects
       </Link>
 
       <header className="mt-12 md:mt-16">

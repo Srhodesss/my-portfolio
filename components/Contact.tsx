@@ -3,12 +3,15 @@
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { animate, onScroll, splitText, stagger } from "animejs";
 
 /**
- * Contact — lukebaffait-style: one large confident heading with
- * "together." revealing letter by letter, a single "Contact me" call to
- * action, minimal supporting links. The section pins (+180%) so it
- * breathes instead of rushing past, matching the site's other pauses.
+ * Contact — one large confident heading, a single call to action.
+ *
+ * Reveal matches About: "Let's build something" splits into WORDS (each
+ * fading in as a unit, staggered); "together." splits into CHARACTERS,
+ * each fading in individually and sharpening from blurred as it lands.
+ * The section keeps a short pin so it breathes rather than rushing past.
  *
  * Phone number and Portfolio PDF intentionally left out pending Sinai's
  * confirmation. LinkedIn URL and CV file are placeholders until supplied.
@@ -22,6 +25,7 @@ const LINKS = [
   { label: "CV", href: "/cv.pdf" },
 ];
 
+const LEAD = "Let’s build something";
 const WORD = "together.";
 
 export default function Contact() {
@@ -31,55 +35,62 @@ export default function Contact() {
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
+    const section = sectionRef.current!;
+    const leadEl = section.querySelector<HTMLElement>(".contact-lead")!;
+    const wordEl = section.querySelector<HTMLElement>(".contact-together")!;
+    section.classList.add("contact-live");
+
+    const leadSplit = splitText(leadEl, { words: true, chars: false });
+    const charSplit = splitText(wordEl, { chars: true, words: false });
+
+    const enter = "bottom-=15% top";
+
+    const a1 = animate(leadSplit.words, {
+      opacity: [0, 1],
+      y: [22, 0],
+      duration: 720,
+      delay: stagger(62),
+      ease: "out(3)",
+      autoplay: onScroll({ target: section, enter, repeat: false }),
+    });
+
+    // Characters arrive individually, sharpening from blur as they land.
+    const a2 = animate(charSplit.chars, {
+      opacity: [0, 1],
+      y: [18, 0],
+      filter: ["blur(9px)", "blur(0px)"],
+      duration: 700,
+      delay: stagger(42, { start: 380 }),
+      ease: "out(3)",
+      autoplay: onScroll({ target: section, enter, repeat: false }),
+    });
+
+    const a3 = animate(".contact-cta", {
+      opacity: [0, 1],
+      y: [20, 0],
+      duration: 760,
+      ease: "out(3)",
+      autoplay: onScroll({ target: section, enter: "bottom-=30% top", repeat: false }),
+    });
+
+    // A short hold so the section breathes.
     gsap.registerPlugin(ScrollTrigger);
     const ctx = gsap.context(() => {
-      // The lead fades in as the section scrolls up into view — before
-      // the pin engages — and reverses on the way back out.
-      gsap.fromTo(
-        ".contact-lead",
-        { autoAlpha: 0, y: 40 },
-        {
-          autoAlpha: 1,
-          y: 0,
-          ease: "none",
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: "top 85%",
-            end: "top 30%",
-            scrub: true,
-          },
-        },
-      );
-
-      // Durations in "percent of one viewport of scroll"; end matches the
-      // timeline total so the hold reads as a real breath.
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: sectionRef.current,
-          start: "top top",
-          end: "+=140%",
-          scrub: true,
-          pin: pinRef.current,
-        },
+      ScrollTrigger.create({
+        trigger: section,
+        start: "top top",
+        end: "+=70%",
+        pin: pinRef.current,
       });
-      gsap.utils.toArray<HTMLElement>(".tg-ch").forEach((ch, i) => {
-        tl.fromTo(
-          ch,
-          { autoAlpha: 0, y: 26 },
-          { autoAlpha: 1, y: 0, duration: 14, ease: "power3.out" },
-          4 + i * 6,
-        );
-      });
-      tl.fromTo(
-        ".contact-cta",
-        { autoAlpha: 0, y: 24 },
-        { autoAlpha: 1, y: 0, duration: 20, ease: "none" },
-        72,
-      );
-      tl.to({}, { duration: 48 }, 92); // hold before release
-    }, sectionRef);
+    }, section);
 
-    return () => ctx.revert();
+    return () => {
+      [a1, a2, a3].forEach((a) => a?.revert?.());
+      leadSplit.revert();
+      charSplit.revert();
+      ctx.revert();
+      section.classList.remove("contact-live");
+    };
   }, []);
 
   return (
@@ -96,13 +107,9 @@ export default function Contact() {
           className="mt-12 max-w-[14ch] font-semibold leading-[1.02] tracking-[-0.02em]"
           style={{ fontSize: "clamp(44px, 7.5vw, 116px)" }}
         >
-          <span className="contact-lead">Let&rsquo;s build something </span>
-          <span className="inline-block whitespace-nowrap font-display font-normal italic">
-            {Array.from(WORD).map((ch, i) => (
-              <span key={i} className="tg-ch inline-block">
-                {ch}
-              </span>
-            ))}
+          <span className="contact-lead">{LEAD}</span>{" "}
+          <span className="contact-together inline-block whitespace-nowrap font-display font-normal italic">
+            {WORD}
           </span>
         </h2>
 

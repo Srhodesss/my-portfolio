@@ -214,8 +214,8 @@ html.reveal-ready [data-reveal].is-in {
 /* ------------------------------------------------------------------ */
 .work-folder {
   position: relative;
-  width: min(400px, 66vw);
-  aspect-ratio: 13 / 9;
+  width: min(500px, 76vw);
+  aspect-ratio: 6 / 5;
   perspective: 1100px;
   cursor: pointer;
   /* Layered elevation: contact shadow, mid lift, ambient spread, plus a
@@ -224,7 +224,8 @@ html.reveal-ready [data-reveal].is-in {
     drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5))
     drop-shadow(0 14px 22px rgba(0, 0, 0, 0.45))
     drop-shadow(0 34px 60px rgba(0, 0, 0, 0.4))
-    drop-shadow(0 18px 46px rgba(255, 107, 53, 0.14));
+    drop-shadow(0 10px 26px rgba(255, 107, 53, 0.34))
+    drop-shadow(0 24px 76px rgba(255, 107, 53, 0.26));
 }
 
 .folder-back {
@@ -249,7 +250,7 @@ html.reveal-ready [data-reveal].is-in {
 
 .folder-docs {
   position: absolute;
-  inset: 5% 9% 25% 9%;
+  inset: 6% 4% 30% 4%;
 }
 
 /* Documents stacked with depth — square white cards with a thin border
@@ -259,9 +260,9 @@ html.reveal-ready [data-reveal].is-in {
   position: absolute;
   bottom: 0;
   left: 50%;
-  width: 54%;
-  aspect-ratio: 1 / 1;
-  padding: 6%;
+  width: 92%;
+  aspect-ratio: 4 / 3;
+  padding: 2.2%;
   border: 1px solid rgba(0, 0, 0, 0.14);
   border-radius: 10px;
   background: #fff;
@@ -633,19 +634,20 @@ html:not(.intro-active) .scripture-intro:not([data-mounted]) {
   }
 }
 
-/* About — progress-linked reveal. The pre-frame hidden state is gated on
-   `about-live`, which only JS adds (and never under reduced motion), so
-   no-JS and reduced-motion visitors always see sharp, static copy. */
-.about-live .about-seg {
+/* About — Anime.js split reveals. The pre-animation hidden state is gated
+   on `about-live`, which only JS adds (and never under reduced motion),
+   so no-JS and reduced-motion visitors always see sharp, static copy. */
+.about-live .about-q-words,
+.about-live .about-q-chars,
+.about-live .about-copy,
+.about-live .about-img {
   opacity: 0;
-}
-.about-seg,
-.about-img {
-  will-change: opacity, filter, transform;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .about-seg,
+  .about-q-words,
+  .about-q-chars,
+  .about-copy,
   .about-img,
   .about-quote {
     opacity: 1 !important;
@@ -691,5 +693,22 @@ html.reveal-ready [data-reveal-text].is-in .rt-inner {
     opacity: 1 !important;
     transform: none !important;
     transition: none !important;
+  }
+}
+
+/* Contact — Anime.js split reveals; hidden state gated on JS-only class. */
+.contact-live .contact-lead,
+.contact-live .contact-together,
+.contact-live .contact-cta {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contact-lead,
+  .contact-together,
+  .contact-cta {
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
   }
 }

@@ -145,7 +145,7 @@ export default function WorkIndex() {
 
       <RevealText
         as="h1"
-        text="Work."
+        text="Projects."
         className="mt-16 block font-semibold leading-none tracking-[-0.03em]"
         style={{ fontSize: "clamp(56px, 11vw, 170px)" }}
       />
