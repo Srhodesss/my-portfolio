@@ -446,20 +446,56 @@ html.cursor-on * {
 
 /* Descriptor pills — large serif-italic chips, thin orange border,
    subtle glow, six full-viewport marquee rows. */
+.pill-slot {
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+/* `--glow` (0..1) is written per-pill by the cursor-proximity loop; the
+   edge brightens toward the same warm yellow-white as the Hebrew
+   watermark glow. */
 .pill {
+  --glow: 0;
   display: inline-flex;
   align-items: center;
   white-space: nowrap;
   padding: 0.42em 1em;
-  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  border: 1px solid
+    color-mix(
+      in srgb,
+      rgb(243, 232, 179) calc(var(--glow) * 85%),
+      color-mix(in srgb, var(--accent) 55%, transparent)
+    );
   border-radius: 9999px;
   font-family: var(--font-display), Georgia, serif;
   font-style: italic;
   font-size: clamp(20px, 2.6vw, 40px);
   color: var(--text-secondary);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
   box-shadow:
-    0 0 14px rgba(255, 107, 53, 0.14),
-    inset 0 0 8px rgba(255, 107, 53, 0.06);
+    0 0 calc(14px + var(--glow) * 26px)
+      rgba(255, 107, 53, calc(0.14 + var(--glow) * 0.08)),
+    0 0 calc(var(--glow) * 22px) rgba(243, 232, 179, calc(var(--glow) * 0.55)),
+    inset 0 0 calc(8px + var(--glow) * 12px)
+      rgba(243, 232, 179, calc(var(--glow) * 0.16));
+}
+
+.pill-dragging {
+  cursor: grabbing;
+  box-shadow:
+    0 18px 44px rgba(0, 0, 0, 0.55),
+    0 0 30px rgba(243, 232, 179, 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pill {
+    cursor: default;
+    box-shadow:
+      0 0 14px rgba(255, 107, 53, 0.14),
+      inset 0 0 8px rgba(255, 107, 53, 0.06);
+  }
 }
 
 /* ------------------------------------------------------------------ */
