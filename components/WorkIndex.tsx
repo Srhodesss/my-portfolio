@@ -10,6 +10,7 @@ import { getLenis } from "@/components/SmoothScroll";
 import { projects } from "@/lib/projects";
 import { WORK_MEDIA, type WorkImage } from "@/lib/work-images";
 import { WORK_META } from "@/lib/work-meta";
+import { useProjectPeek, peekId } from "@/components/ProjectPeek";
 
 /**
  * /work — an editorial index. A persistent left sidebar lists every
@@ -41,17 +42,21 @@ function Figure({
   image,
   alt,
   eager,
+  layoutId,
 }: {
   image: WorkImage;
   alt: string;
   eager?: boolean;
+  /** Present on cards that morph into the peek panel. */
+  layoutId?: string;
 }) {
   return (
     <div
       data-reveal
+      data-layout-id={layoutId}
       className={`relative w-full overflow-hidden border border-border ${
-        image.alpha ? "bg-white" : "bg-black"
-      }`}
+        layoutId ? "peek-card" : ""
+      } ${image.alpha ? "bg-white" : "bg-black"}`}
       style={{ aspectRatio: `${image.w} / ${image.h}` }}
     >
       <Image
@@ -96,6 +101,7 @@ function Field({
 
 export default function WorkIndex() {
   const rootRef = useRef<HTMLDivElement>(null);
+  const peek = useProjectPeek();
   const [active, setActive] = useState(projects[0]?.slug ?? "");
 
   useEffect(() => {
@@ -357,15 +363,25 @@ export default function WorkIndex() {
                 {/* Gallery — hero then numbered collage, sharp corners */}
                 {media && (
                   <div className="mt-12 space-y-4 md:mt-16 md:space-y-6">
+                    {/* Plain click opens the peek, which morphs from this
+                        card; the href stays real so modifier-clicks, middle
+                        clicks and crawlers still reach the case study. */}
                     <Link
                       href={`/work/${project.slug}`}
                       className="wi-hero block"
-                      aria-label={`${project.title} case study`}
+                      aria-label={`${project.title} — quick look`}
+                      onClick={(e) => {
+                        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
+                          return;
+                        e.preventDefault();
+                        peek.open(project.slug);
+                      }}
                     >
                       <Figure
                         image={media.hero}
                         alt={project.cover.alt}
                         eager={i === 0}
+                        layoutId={peekId(project.slug)}
                       />
                     </Link>
                     {media.collage.length > 0 && (

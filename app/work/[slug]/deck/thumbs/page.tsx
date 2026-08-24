@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import CaseDeck from "@/components/CaseDeck";
+import CaseDeckThumbs from "@/components/CaseDeckThumbs";
 import { CASE_DECKS } from "@/lib/case-decks";
 import { getProject } from "@/lib/projects";
 
@@ -12,22 +12,11 @@ export function generateStaticParams(): Params[] {
   return Object.keys(CASE_DECKS).map((slug) => ({ slug }));
 }
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<Params>;
-}): Promise<Metadata> {
-  const { slug } = await params;
-  const project = getProject(slug);
-  const deck = CASE_DECKS[slug];
-  if (!project || !deck) return {};
-  return {
-    title: `${project.title} — ${deck.label} — Sinai Rhodes`,
-    description: `${deck.label} for ${project.title}, page by page.`,
-  };
-}
+export const metadata: Metadata = {
+  title: "Deck — thumbnail variant — Sinai Rhodes",
+};
 
-export default async function DeckPage({
+export default async function DeckThumbsPage({
   params,
 }: {
   params: Promise<Params>;
@@ -38,7 +27,7 @@ export default async function DeckPage({
   if (!project || !deck) notFound();
   return (
     <main>
-      <CaseDeck title={project.title} deck={deck} />
+      <CaseDeckThumbs title={project.title} deck={deck} />
     </main>
   );
 }

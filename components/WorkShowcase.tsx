@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { animate, onScroll } from "animejs";
 import { projects } from "@/lib/projects";
+import { useProjectPeek, peekId } from "@/components/ProjectPeek";
 
 /**
  * Work — a large "Work." wordmark sits behind, and the Projects folder
@@ -18,6 +19,11 @@ import { projects } from "@/lib/projects";
  * Per apple-design: feedback fires on pointer-down, not on release, and
  * every tween starts from the element's live value so an interrupted
  * hover redirects instead of jumping.
+ *
+ * The folder body links through to the full Projects index; the cards
+ * poking out of the top are individually clickable and morph open into a
+ * peek panel (ProjectPeek), so the folder reads as something you can
+ * either open wholesale or pick a single sheet out of.
  *
  * Reduced motion: no tweens; the folder rests in its static state.
  */
@@ -37,6 +43,7 @@ const HOVER_DOC_Y = [-14, -19, -24, -29, -34, -39];
 
 export default function WorkShowcase() {
   const sectionRef = useRef<HTMLElement>(null);
+  const peek = useProjectPeek();
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -143,16 +150,27 @@ export default function WorkShowcase() {
 
       {/* Folder — explicitly in front (z-10). */}
       <div className="relative z-10 flex flex-col items-center">
-        <Link
-          href="/work"
-          aria-label="View all projects"
-          className="work-folder block outline-offset-8"
-        >
+        <div className="work-folder">
           <span aria-hidden className="folder-back" />
-          <span aria-hidden className="folder-docs">
+          {/* Each sheet is its own control — clicking the sliver that pokes
+              out lifts that project into the peek panel. */}
+          <span className="folder-docs">
             {DOC_PROJECTS.map((p, i) => (
-              <span key={p.slug} className="folder-doc" data-i={i}>
-                <span className="folder-doc-inner">
+              <button
+                key={p.slug}
+                type="button"
+                className="folder-doc"
+                data-i={i}
+                aria-label={`${p.title} — quick look`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  peek.open(p.slug);
+                }}
+              >
+                <span
+                  className="folder-doc-inner peek-card"
+                  data-layout-id={peekId(p.slug)}
+                >
                   <Image
                     src={p.cover.src}
                     alt=""
@@ -162,13 +180,18 @@ export default function WorkShowcase() {
                     priority={i === 0}
                   />
                 </span>
-              </span>
+              </button>
             ))}
           </span>
-          <span aria-hidden className="folder-front">
+          {/* The folder face itself opens the full index. */}
+          <Link
+            href="/work"
+            aria-label="View all projects"
+            className="folder-front outline-offset-8"
+          >
             <span className="folder-label">SR&rsquo;s Stuff</span>
-          </span>
-        </Link>
+          </Link>
+        </div>
 
         <p className="mt-12 text-body-s text-text-muted">
           Curious? Check out my work.

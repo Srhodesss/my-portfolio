@@ -6,6 +6,7 @@ import {
   referenceFace,
 } from "./fonts";
 import CustomCursor from "@/components/CustomCursor";
+import ProjectPeek from "@/components/ProjectPeek";
 import ScrollReveal from "@/components/ScrollReveal";
 import SmoothScroll from "@/components/SmoothScroll";
 import "./globals.css";
@@ -38,7 +39,9 @@ export default function RootLayout({
     >
       <body className="bg-bg font-sans text-text">
         <script dangerouslySetInnerHTML={{ __html: introGate }} />
-        <SmoothScroll>{children}</SmoothScroll>
+        <SmoothScroll>
+          <ProjectPeek>{children}</ProjectPeek>
+        </SmoothScroll>
         <CustomCursor />
         <ScrollReveal />
       </body>
