@@ -1,7 +1,8 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import HebrewWatermark from "@/components/HebrewWatermark";
+import RippleText from "@/components/RippleText";
 
 /* The verse is set on exactly two lines (manual break; each line is a
    nowrap block from md up, wrapping naturally only on small screens). */
@@ -38,6 +39,7 @@ const ATTRIBUTION_DELAY_S = WRITE_END_MS / 1000 + 0.3;
 
 export default function ScriptureIntro() {
   const [phase, setPhase] = useState<"writing" | "leaving" | "done">("writing");
+  const [ready, setReady] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -50,22 +52,40 @@ export default function ScriptureIntro() {
     // Hand visibility control to React; the CSS no-JS guard steps aside.
     rootRef.current?.setAttribute("data-mounted", "");
 
-    const fade = setTimeout(() => {
-      // Swap classes in one frame: unlock scroll + fire the hero's staggered
-      // rise so it lands as the veil lifts.
-      const root = document.documentElement;
-      root.classList.remove("intro-active");
-      root.classList.add("hero-revealing");
-      setPhase("leaving");
-    }, FADE_START_MS);
-    const unmount = setTimeout(() => setPhase("done"), FADE_START_MS + FADE_MS);
+    // The verse no longer times out into the hero. Once it has finished
+    // writing, a CTA fades in and the intro simply waits — the reader
+    // decides when to move on.
+    const arm = setTimeout(() => setReady(true), FADE_START_MS);
 
     return () => {
-      clearTimeout(fade);
-      clearTimeout(unmount);
+      clearTimeout(arm);
       document.documentElement.classList.remove("intro-active");
     };
   }, []);
+
+  /* Hand over to the hero: unlock scroll and fire the hero's staggered
+     rise in the same frame the veil starts lifting. */
+  const proceed = useCallback(() => {
+    if (phase !== "writing") return;
+    const root = document.documentElement;
+    root.classList.remove("intro-active");
+    root.classList.add("hero-revealing");
+    setPhase("leaving");
+    window.setTimeout(() => setPhase("done"), FADE_MS);
+  }, [phase]);
+
+  /* Enter/Space work as well as the click, and Escape skips ahead. */
+  useEffect(() => {
+    if (!ready || phase !== "writing") return;
+    const onKey = (e: KeyboardEvent) => {
+      if (["Enter", " ", "Escape"].includes(e.key)) {
+        e.preventDefault();
+        proceed();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [ready, phase, proceed]);
 
   if (phase === "done") return null;
 
@@ -81,7 +101,7 @@ export default function ScriptureIntro() {
           HebrewWatermark). */}
       <div
         aria-hidden
-        className="hebrew-mask absolute inset-0 select-none overflow-hidden"
+        className="absolute inset-0 select-none overflow-hidden"
       >
         <HebrewWatermark />
       </div>
@@ -132,6 +152,31 @@ export default function ScriptureIntro() {
         >
           Exodus 31:3–4
         </figcaption>
+
+        {/* Waits for the reader rather than timing out. Treated as a
+            quiet typographic invitation rather than a UI button: the
+            site's overline setting, a hairline that draws itself on
+            hover, and the single orange accent the palette allows. */}
+        <button
+          type="button"
+          onClick={proceed}
+          className={`intro-cta group mt-16 inline-flex flex-col items-center gap-3 transition-opacity duration-1000 ease-out ${
+            ready
+              ? "pointer-events-auto opacity-100"
+              : "pointer-events-none opacity-0"
+          }`}
+        >
+          <span className="flex items-baseline text-overline uppercase tracking-[0.22em] text-text-muted">
+            <RippleText arrow="right">Enter</RippleText>
+          </span>
+          {/* Hairline that draws out from the centre on hover. */}
+          <span
+            aria-hidden
+            className="block h-px w-16 origin-center scale-x-100 bg-text-muted/35 transition-all duration-500 ease-out group-hover:w-24 group-hover:bg-accent"
+          />
+          <span className="sr-only">Proceed to the main site</span>
+        </button>
+
       </figure>
     </div>
   );

@@ -4,7 +4,10 @@ import NameMark from "@/components/NameMark";
 
 export default function Hero() {
   return (
-    <section className="relative flex min-h-svh flex-col overflow-hidden px-6 pt-10 md:px-12 lg:px-20">
+    <section
+      id="hero"
+      className="relative flex min-h-svh flex-col overflow-hidden px-6 pt-10 md:px-12 lg:px-20"
+    >
       <HeroGlyphField />
 
       {/* Name only, horizontal along the bottom: SINAI left, Rhodes right,

@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parent.parent
 TS = ROOT / "lib" / "case-decks.ts"
 
 SOURCES = {
+    "interax": "raw-assets/interax/web-ready-assets/project-work/interax-portfolio.pdf",
     "cardo": "raw-assets/cardo/project-work/Cardo - Business Report.pdf",
     "aid-sirho-frames": "raw-assets/aid/project-work/Rhodes_Sinai_Portfolio.pdf",
     "cuttleswish": "raw-assets/cuttleswish/project-work/IDE_Group4_Portfolio.pdf",
@@ -27,6 +28,39 @@ NOISE = re.compile(
     r"^(page\s*\d+|\d+|figure\s*\d+|fig\.?\s*\d+|contents|www\.|http)",
     re.I,
 )
+
+# Team documents carry a per-page author byline in the same type size as a
+# heading, so the first "title-like" line on a page is sometimes just a
+# name. Skipped from page 2 onward only: a cover page's title genuinely
+# can be the author's name (Sirho Frames' portfolio opens on exactly
+# that).
+BYLINES = {
+    "ashley yang",
+    "gexing fang",
+    "ruby kennedy",
+    "sinai rhodes",
+    "freddie nicholson",
+    "emmanuel irechukwu",
+    "liberty wright",
+    "kaitai yang",
+    "francesco",
+    "alex",
+}
+
+# Some headings are split across lines by the layout, or set in a face
+# whose runs pdftotext returns out of order, so the first title-like line
+# is only a fragment. These are read off the page and pinned here, so a
+# re-run of this script does not undo them.
+OVERRIDES: dict[str, dict[int, str]] = {
+    "brushed-lips": {
+        2: "PROBLEM OUTLINE",
+        3: "FUTURE SCENARIO",
+        12: "VALUE SYSTEM OVERVIEW",
+        13: "PRINCIPLE SYSTEM DESIGN",
+        14: "EXISTING PRINCIPLE SYSTEM",
+    },
+}
+
 
 def page_count(pdf: Path) -> int:
     out = subprocess.run(["pdfinfo", str(pdf)], capture_output=True, text=True).stdout
@@ -43,6 +77,30 @@ def normalise(line: str) -> str:
     return re.sub(r"(?<=[A-Za-z])!(?=[A-Za-z])", "I", line)
 
 
+SECTION_RE = re.compile(r"^(\d{1,2})[.)]?\s+([A-Z][A-Za-z&/'\u2019\- ]{2,44})$")
+
+
+def section_for(pdf: Path, page: int) -> tuple[int, str] | None:
+    """Top-level numbered heading starting on this page, e.g. "2 Market analysis".
+
+    Only the first few lines are considered — a section heading opens its
+    page. Pages carrying two or more such headings are contents pages, not
+    section starts, so they are skipped.
+    """
+    out = subprocess.run(
+        ["pdftotext", "-f", str(page), "-l", str(page), str(pdf), "-"],
+        capture_output=True, text=True,
+    ).stdout
+    hits = []
+    for raw in out.splitlines()[:14]:
+        m = SECTION_RE.match(" ".join(raw.split()))
+        if m:
+            hits.append((int(m.group(1)), normalise(m.group(2).strip())))
+    if len(hits) != 1:
+        return None
+    return hits[0]
+
+
 def title_for(pdf: Path, page: int) -> str | None:
     out = subprocess.run(
         ["pdftotext", "-f", str(page), "-l", str(page), str(pdf), "-"],
@@ -51,6 +109,8 @@ def title_for(pdf: Path, page: int) -> str | None:
     for raw in out.splitlines():
         line = " ".join(raw.split())
         if not line or NOISE.match(line):
+            continue
+        if page > 1 and line.strip().lower() in BYLINES:
             continue
         # A heading: short, starts like a heading (capital / digit-free),
         # and is not a wrapped body-copy fragment.
@@ -77,9 +137,14 @@ def main() -> None:
         "export type CaseDeck = {",
         "  label: string;",
         "  pages: number;",
+        "  /** Compressed source PDF, rendered on-site by PDF.js. */",
+        "  pdf: string;",
+        "  /** Rasterised page dir (thumbnails / fallback). */",
         "  dir: string;",
         "  /** Section title per page, where one could be detected. */",
         "  titles: (string | null)[];",
+        "  /** Set only on the page where a new numbered section begins. */",
+        "  sections: (string | null)[];",
         "};",
         "",
         "export const CASE_DECKS: Record<string, CaseDeck> = {",
@@ -94,13 +159,46 @@ def main() -> None:
         label = m.group(1) if m else "Document"
         n = page_count(pdf)
         titles = [title_for(pdf, i) for i in range(1, n + 1)]
+        for page_no, fixed in OVERRIDES.get(slug, {}).items():
+            if 1 <= page_no <= n:
+                titles[page_no - 1] = fixed
         found = sum(1 for t in titles if t)
+
+        # Section starts: accept a heading only when its number advances on
+        # the last one accepted, which drops contents pages, repeats and
+        # stray prose that happens to open with a digit.
+        sections: list[str | None] = [None] * n
+        last_no = 0
+        for i in range(1, n + 1):
+            hit = section_for(pdf, i)
+            if hit and hit[0] > last_no:
+                last_no = hit[0]
+                sections[i - 1] = f"{hit[0]} {hit[1]}"
+        n_sections = sum(1 for s in sections if s)
+
+        # Not every deck numbers its sections. Cuttleswish, for one, sets a
+        # plain heading at the top-left of each page and repeats it across
+        # that section's pages — so fall back to the page titles and mark a
+        # start wherever the heading CHANGES. Same result as the numbered
+        # path: one index entry per section, carried across its pages.
+        if n_sections < 2:
+            sections = [None] * n
+            previous = None
+            for i, title in enumerate(titles):
+                if title and title != previous:
+                    sections[i] = title
+                previous = title or previous
+            n_sections = sum(1 for s in sections if s)
         rendered = ", ".join("null" if t is None else '"%s"' % t.replace('"', "'") for t in titles)
+        rendered_sections = ", ".join(
+            "null" if s is None else '"%s"' % s.replace('"', "'") for s in sections
+        )
         lines.append(
             f'  "{slug}": {{ label: "{label}", pages: {n}, '
-            f'dir: "/case-pdf/{slug}", titles: [{rendered}] }},'
+            f'pdf: "/case-pdf/{slug}.pdf", dir: "/case-pdf/{slug}", '
+            f'titles: [{rendered}], sections: [{rendered_sections}] }},'
         )
-        print(f"{slug}: {found}/{n} pages titled")
+        print(f"{slug}: {found}/{n} pages titled, {n_sections} sections")
     lines.append("};")
     TS.write_text("\n".join(lines) + "\n")
     print(f"wrote {TS.relative_to(ROOT)}")

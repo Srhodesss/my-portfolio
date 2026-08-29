@@ -14,6 +14,7 @@ import { createPortal } from "react-dom";
 import { createLayout } from "animejs";
 import { getLenis } from "@/components/SmoothScroll";
 import { projects, type Project } from "@/lib/projects";
+import RippleText from "@/components/RippleText";
 
 /**
  * Shared-layout project peek — a clicked card morphs into its expanded
@@ -335,15 +336,9 @@ export default function ProjectPeek({
                   <Link
                     href={`/work/${active.slug}`}
                     onClick={() => getLenis()?.start()}
-                    className="group inline-flex items-baseline gap-2 text-body-s font-medium transition-colors hover:text-accent"
+                    className="group inline-flex items-baseline text-body-s font-medium"
                   >
-                    Open case study
-                    <span
-                      aria-hidden
-                      className="text-accent transition-transform duration-300 group-hover:translate-x-1"
-                    >
-                      →
-                    </span>
+                    <RippleText arrow="right">Open case study</RippleText>
                   </Link>
                   <button
                     type="button"

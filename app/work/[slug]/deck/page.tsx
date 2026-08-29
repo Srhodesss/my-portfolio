@@ -4,6 +4,11 @@ import CaseDeck from "@/components/CaseDeck";
 import { CASE_DECKS } from "@/lib/case-decks";
 import { getProject } from "@/lib/projects";
 
+/* Decks that read better several pages at a time. Cardo's business report
+   is 52 pages of mostly text, so three-up lets it be scanned rather than
+   paged through one sheet at a time. */
+const SLIDES_PER_VIEW: Record<string, number> = { cardo: 3 };
+
 type Params = { slug: string };
 
 export const dynamicParams = false;
@@ -38,7 +43,12 @@ export default async function DeckPage({
   if (!project || !deck) notFound();
   return (
     <main>
-      <CaseDeck title={project.title} deck={deck} />
+      <CaseDeck
+        title={project.title}
+        slug={slug}
+        deck={deck}
+        perView={SLIDES_PER_VIEW[slug] ?? 1}
+      />
     </main>
   );
 }

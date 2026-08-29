@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { animate, onScroll, splitText, stagger } from "animejs";
+import { splitText } from "animejs";
+import RippleText from "@/components/RippleText";
+import FlipLink from "@/components/FlipLink";
 
 /**
  * Contact — one large confident heading, a single call to action.
@@ -19,8 +19,7 @@ import { animate, onScroll, splitText, stagger } from "animejs";
  */
 
 const LINKS = [
-  // TODO: real LinkedIn profile URL from Sinai
-  { label: "LinkedIn", href: "https://www.linkedin.com" },
+  { label: "LinkedIn", href: "https://www.linkedin.com/in/sinairhodes/" },
   // TODO: drop the real CV at public/cv.pdf
   { label: "CV", href: "/cv.pdf" },
 ];
@@ -51,52 +50,61 @@ export default function Contact() {
     leadEl.style.opacity = "1";
     wordEl.style.opacity = "1";
 
-    const enter = "bottom-=15% top";
+    const clamp = (v: number) => Math.min(1, Math.max(0, v));
+    const smooth = (v: number) => {
+      const c = clamp(v);
+      return c * c * (3 - 2 * c);
+    };
 
-    const a1 = animate(leadSplit.words, {
-      opacity: [0, 1],
-      y: [22, 0],
-      duration: 720,
-      delay: stagger(62),
-      ease: "out(3)",
-      autoplay: onScroll({ target: section, enter, repeat: false }),
-    });
+    const words = leadSplit.words as HTMLElement[];
+    const chars = charSplit.chars as HTMLElement[];
+    const cta = section.querySelector<HTMLElement>(".contact-cta");
 
-    // Characters arrive individually, sharpening from blur as they land.
-    const a2 = animate(charSplit.chars, {
-      opacity: [0, 1],
-      y: [18, 0],
-      filter: ["blur(9px)", "blur(0px)"],
-      duration: 700,
-      delay: stagger(42, { start: 380 }),
-      ease: "out(3)",
-      autoplay: onScroll({ target: section, enter, repeat: false }),
-    });
+    // Scroll-linked, so the reveal runs forward on the way down and
+    // exactly backwards on the way up — words un-reveal in reverse, the
+    // characters re-blur — rather than firing once and staying put.
+    let raf = 0;
+    const frame = () => {
+      raf = requestAnimationFrame(frame);
+      const vh = window.innerHeight;
+      const r = section.getBoundingClientRect();
+      if (r.bottom < -300 || r.top > vh + 300) return;
 
-    const a3 = animate(".contact-cta", {
-      opacity: [0, 1],
-      y: [20, 0],
-      duration: 760,
-      ease: "out(3)",
-      autoplay: onScroll({ target: section, enter: "bottom-=30% top", repeat: false }),
-    });
+      // Starts only once the black veil has peaked (BlackTransition tops
+      // out as this section's top crosses mid-viewport), so the heading
+      // resolves out of black rather than over the outgoing section.
+      const rp = clamp((vh * 0.45 - r.top) / (vh * 0.6));
 
-    // A short hold so the section breathes.
-    gsap.registerPlugin(ScrollTrigger);
-    const ctx = gsap.context(() => {
-      ScrollTrigger.create({
-        trigger: section,
-        start: "top top",
-        end: "+=70%",
-        pin: pinRef.current,
+      const wStep = words.length > 1 ? 0.22 / words.length : 0;
+      words.forEach((el, i) => {
+        const local = smooth((rp - i * wStep) / 0.3);
+        el.style.opacity = String(local);
+        el.style.transform = `translateY(${((1 - local) * 22).toFixed(2)}px)`;
       });
-    }, section);
+
+      // "Let's build something" finishes at ~0.36. "together." holds off
+      // until 0.5, so there is a clear beat between the two rather than
+      // one running into the other.
+      const cStep = chars.length ? 0.24 / chars.length : 0;
+      chars.forEach((el, j) => {
+        const local = smooth((rp - 0.5 - j * cStep) / 0.24);
+        el.style.opacity = String(local);
+        el.style.transform = `translateY(${((1 - local) * 18).toFixed(2)}px)`;
+        el.style.filter = `blur(${((1 - local) * 9).toFixed(2)}px)`;
+      });
+
+      if (cta) {
+        const c = smooth((rp - 0.72) / 0.24);
+        cta.style.opacity = String(c);
+        cta.style.transform = `translateY(${((1 - c) * 20).toFixed(2)}px)`;
+      }
+    };
+    raf = requestAnimationFrame(frame);
 
     return () => {
-      [a1, a2, a3].forEach((a) => a?.revert?.());
+      cancelAnimationFrame(raf);
       leadSplit.revert();
       charSplit.revert();
-      ctx.revert();
       section.classList.remove("contact-live");
     };
   }, []);
@@ -105,7 +113,7 @@ export default function Contact() {
     <section ref={sectionRef} id="contact" className="scroll-mt-12">
       <div
         ref={pinRef}
-        className="flex min-h-svh flex-col justify-center px-6 py-16 md:px-12 lg:px-20"
+        className="flex min-h-svh flex-col justify-center px-6 py-28 md:px-12 md:py-40 lg:px-20"
       >
         <p className="text-overline uppercase tracking-[0.05em] text-text-muted">
           Contact
@@ -124,28 +132,24 @@ export default function Contact() {
         <div className="contact-cta">
           <a
             href="mailto:sinai.r@icloud.com"
-            className="group mt-14 inline-flex items-baseline gap-4 text-body-l font-medium transition-colors hover:text-accent md:text-heading"
+            className="group has-rule relative mt-14 inline-flex items-baseline text-body-l font-medium md:text-heading"
           >
-            Contact me
-            <span
-              aria-hidden
-              className="inline-block text-accent transition-transform duration-300 group-hover:translate-x-2"
-            >
-              →
-            </span>
+            <RippleText arrow="right">Contact me</RippleText>
+            <span aria-hidden className="hover-rule" />
           </a>
 
+          {/* Same word-flip and drawn underline as the nav bar, so every
+              standing link on the site behaves the same way. */}
           <ul className="mt-16 flex gap-10">
             {LINKS.map(({ label, href }) => (
               <li key={label}>
-                <a
+                <FlipLink
                   href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-overline uppercase tracking-[0.05em] text-text-muted transition-colors hover:text-accent"
-                >
-                  {label}
-                </a>
+                  label={label}
+                  external
+                  underline
+                  className="inline-flex items-center py-3 text-overline uppercase tracking-[0.05em] text-text-muted"
+                />
               </li>
             ))}
           </ul>

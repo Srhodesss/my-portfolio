@@ -27,7 +27,7 @@ export default async function DeckThumbsPage({
   if (!project || !deck) notFound();
   return (
     <main>
-      <CaseDeckThumbs title={project.title} deck={deck} />
+      <CaseDeckThumbs title={project.title} slug={slug} deck={deck} />
     </main>
   );
 }

@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Vendored tooling (impeccable skill scripts), not project code.
     ".claude/**",
+    // Static assets, incl. the vendored minified PDF.js worker.
+    "public/**",
   ]),
 ]);
 

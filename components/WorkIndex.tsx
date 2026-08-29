@@ -11,12 +11,13 @@ import { projects } from "@/lib/projects";
 import { WORK_MEDIA, type WorkImage } from "@/lib/work-images";
 import { WORK_META } from "@/lib/work-meta";
 import { useProjectPeek, peekId } from "@/components/ProjectPeek";
+import RippleText from "@/components/RippleText";
 
 /**
  * /work — an editorial index. A persistent left sidebar lists every
  * project; each entry anchors to its section on the same page and
  * highlights as that section becomes current. Each section leads with a
- * title and year, then three labelled fields side by side (Brief, Skills,
+ * title and year, then three labelled fields side by side (Summary, Skills,
  * Role) and any live links, followed by the project's gallery.
  *
  * Visual language is ours, not the reference's: dark ground, orange
@@ -30,6 +31,18 @@ import { useProjectPeek, peekId } from "@/components/ProjectPeek";
 
 /* Editorial column rhythm for gallery items, cycling. Literal strings so
    Tailwind's scanner sees them. */
+/* Explicit spans, as literal strings so Tailwind's scanner sees them. */
+const SPAN_CLASS: Record<number, string> = {
+  3: "md:col-span-3",
+  4: "md:col-span-4",
+  5: "md:col-span-5",
+  6: "md:col-span-6",
+  7: "md:col-span-7",
+  8: "md:col-span-8",
+  9: "md:col-span-9",
+  12: "md:col-span-12",
+};
+
 const SPANS = [
   "md:col-span-12",
   "md:col-span-7",
@@ -54,9 +67,17 @@ function Figure({
     <div
       data-reveal
       data-layout-id={layoutId}
-      className={`relative w-full overflow-hidden border border-border ${
-        layoutId ? "peek-card" : ""
-      } ${image.alpha ? "bg-white" : "bg-black"}`}
+      className={`relative w-full overflow-hidden ${
+        // UI / screen captures read as their own artefact and are shot on
+        // white; product renders keep the dark ground. The white sits
+        // directly behind the artwork — no frame, no inset — so the image
+        // renders at its own full size.
+        image.light
+          ? image.beige
+            ? "bg-cutout-warm"
+            : "bg-cutout"
+          : "border border-border bg-black"
+      } ${layoutId ? "peek-card" : ""}`}
       style={{ aspectRatio: `${image.w} / ${image.h}` }}
     >
       <Image
@@ -64,7 +85,9 @@ function Figure({
         alt={alt}
         fill
         sizes="(min-width: 1024px) 76vw, 100vw"
-        className={image.alpha ? "object-contain p-6 md:p-10" : "object-cover"}
+        className={`${
+          image.alpha || image.light ? "object-contain" : "object-cover"
+        } ${image.padded ? "p-5" : ""}`}
         priority={eager}
       />
     </div>
@@ -102,6 +125,7 @@ function Field({
 export default function WorkIndex() {
   const rootRef = useRef<HTMLDivElement>(null);
   const peek = useProjectPeek();
+  const homeRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(projects[0]?.slug ?? "");
 
   useEffect(() => {
@@ -192,6 +216,34 @@ export default function WorkIndex() {
     };
   }, []);
 
+  /* The pinned Home link sits over the big "Projects." title on load.
+     Fade it out while the two overlap, and back in once past it. */
+  useEffect(() => {
+    const home = homeRef.current;
+    const title = document.querySelector<HTMLElement>(".work-title");
+    if (!home || !title) return;
+    let raf = 0;
+    const apply = () => {
+      raf = 0;
+      const h = home.getBoundingClientRect();
+      const t = title.getBoundingClientRect();
+      const overlapping = t.top < h.bottom + 8 && t.bottom > h.top - 8;
+      home.style.opacity = overlapping ? "0" : "1";
+      home.style.pointerEvents = overlapping ? "none" : "";
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(apply);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    apply();
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+
   const goTo = (slug: string) => (e: React.MouseEvent) => {
     e.preventDefault();
     const el = document.getElementById(slug);
@@ -206,29 +258,33 @@ export default function WorkIndex() {
 
   return (
     <div ref={rootRef} className="px-6 pb-32 pt-10 md:px-12 lg:px-20">
-      <header className="flex items-baseline justify-between">
+      {/* Home stays put: pinned top-left, above the index, at any scroll
+          position on this page. */}
+      <div
+        ref={homeRef}
+        className="fixed left-6 top-6 z-50 transition-opacity duration-300 md:left-12 lg:left-20"
+      >
         <FlipLink
           href="/"
-          label="← Home"
+          label="Home"
+          underline
+          backArrow
           className="text-overline uppercase tracking-[0.05em] text-text-muted"
         />
-        <span className="text-overline uppercase tracking-[0.05em] text-text-muted">
-          {projects.length} projects
-        </span>
-      </header>
+      </div>
 
       <RevealText
         as="h1"
         text="Projects."
         stagger={0.016}
-        className="mt-16 block font-semibold leading-none tracking-[-0.03em]"
+        className="work-title mt-16 block font-semibold leading-none tracking-[-0.03em]"
         style={{ fontSize: "clamp(56px, 11vw, 170px)" }}
       />
 
       <div className="mt-20 gap-16 lg:grid lg:grid-cols-[180px_1fr] lg:gap-20 xl:grid-cols-[220px_1fr]">
         {/* Persistent sidebar */}
         <nav aria-label="Projects" className="hidden lg:block">
-          <div className="sticky top-24">
+          <div className="sticky top-28">
             <p className="text-overline uppercase tracking-[0.08em] text-text-muted">
               Index
             </p>
@@ -242,12 +298,14 @@ export default function WorkIndex() {
                       href={`#${p.slug}`}
                       onClick={goTo(p.slug)}
                       aria-current={isActive ? "true" : undefined}
-                      className={`flip-link group flex items-baseline gap-3 py-1.5 text-body-s transition-colors duration-200 ${
+                      className={`wi-nav flip-link group flex items-baseline gap-3 py-1.5 text-body-s ${
                         isActive
-                          ? "text-accent"
+                          ? "wi-nav-active text-accent"
                           : "text-text-muted hover:text-text"
                       }`}
                     >
+                      {/* Slides in as this project becomes current. */}
+                      <span aria-hidden className="wi-nav-mark" />
                       <span className="text-overline tabular-nums opacity-60">
                         {String(i + 1).padStart(2, "0")}
                       </span>
@@ -281,17 +339,21 @@ export default function WorkIndex() {
               <section
                 key={project.slug}
                 id={project.slug}
-                className="scroll-mt-24"
+                // No scroll-margin: the header is sticky at top 0, and any gap here
+                // leaves the descender of "Projects." peeking in above it.
+                className="scroll-mt-0"
               >
                 {/* Title + year */}
-                <div className="wi-head flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-border pb-5">
+                {/* Sticky while its own images scroll past; the next project's
+                    header pushes it out as it arrives. */}
+                <div className="wi-head sticky top-0 z-30 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-border bg-bg pb-5 pt-6">
                   <RevealText
                     as="h2"
                     text={project.title}
                     className="block font-semibold tracking-tight"
                     style={{ fontSize: "clamp(28px, 3.4vw, 48px)" }}
                   />
-                  <span className="font-display text-body-l italic text-text-muted">
+                  <span className="font-display text-body-l italic text-accent">
                     {meta?.year ?? (
                       <span className="text-accent">TODO</span>
                     )}
@@ -304,18 +366,39 @@ export default function WorkIndex() {
                   </p>
                 )}
 
-                {/* Brief / Skills / Role, side by side */}
+                {/* Summary / Skills / Role, side by side */}
                 <div className="wi-fields mt-8 grid gap-8 md:grid-cols-3 md:gap-10">
-                  <Field label="Brief" value={meta?.brief} />
+                  <Field label="Summary" value={meta?.summary} />
                   <Field label="Skills">
                     {meta && meta.skills.length > 0 ? (
-                      <ul className="flex flex-wrap gap-x-3 gap-y-1.5">
-                        {meta.skills.map((s) => (
-                          <li key={s} className="after:ml-3 after:text-text-muted after:content-['·'] last:after:content-['']">
-                            {s}
-                          </li>
-                        ))}
-                      </ul>
+                      <>
+                        <ul className="flex flex-wrap gap-x-3 gap-y-1.5">
+                          {meta.skills.map((s) => (
+                            <li key={s} className="after:ml-3 after:text-text-muted after:content-['·'] last:after:content-['']">
+                              {s}
+                            </li>
+                          ))}
+                        </ul>
+                        {/* Named software sits under the disciplines, so
+                            the two are never read as one list. Each mark
+                            comes from the same set the Skills section
+                            uses. */}
+                        {meta.tools.length > 0 && (
+                          <ul className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-4">
+                            {meta.tools.map((tool) => (
+                              <li key={tool.name} title={tool.name}>
+                                <Image
+                                  src={tool.icon}
+                                  alt={tool.name}
+                                  width={56}
+                                  height={56}
+                                  className="h-14 w-14 object-contain"
+                                />
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </>
                     ) : undefined}
                   </Field>
                   <Field label="Role" value={meta?.role} />
@@ -331,29 +414,17 @@ export default function WorkIndex() {
                           href={l.href}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="group inline-flex items-baseline gap-2 text-body-s font-medium transition-colors hover:text-accent"
+                          className="group inline-flex items-baseline text-body-s font-medium"
                         >
-                          {l.label}
-                          <span
-                            aria-hidden
-                            className="text-accent transition-transform duration-300 group-hover:translate-x-1"
-                          >
-                            ↗
-                          </span>
+                          <RippleText arrow="diagonal">{l.label}</RippleText>
                         </a>
                       ) : (
                         <Link
                           key={l.label}
                           href={l.href}
-                          className="group inline-flex items-baseline gap-2 text-body-s font-medium transition-colors hover:text-accent"
+                          className="group inline-flex items-baseline text-body-s font-medium"
                         >
-                          {l.label}
-                          <span
-                            aria-hidden
-                            className="text-accent transition-transform duration-300 group-hover:translate-x-1"
-                          >
-                            →
-                          </span>
+                          <RippleText arrow="right">{l.label}</RippleText>
                         </Link>
                       ),
                     )}
@@ -387,7 +458,16 @@ export default function WorkIndex() {
                     {media.collage.length > 0 && (
                       <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-12 md:gap-6">
                         {media.collage.map((image, j) => (
-                          <div key={image.src} className={SPANS[j % SPANS.length]}>
+                          <div
+                            key={image.src}
+                            className={`${
+                              image.full
+                                ? "md:col-span-12"
+                                : image.span
+                                  ? SPAN_CLASS[image.span]
+                                  : SPANS[j % SPANS.length]
+                            }${image.centred ? " md:col-start-4" : ""}`}
+                          >
                             <Figure
                               image={image}
                               alt={`${project.title} — image ${j + 1}`}

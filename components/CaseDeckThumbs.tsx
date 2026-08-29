@@ -1,25 +1,29 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import ClassNames from "embla-carousel-class-names";
+import PdfPage from "@/components/PdfPage";
 import type { CaseDeck as Deck } from "@/lib/case-decks";
+import FlipLink from "@/components/FlipLink";
 
 /**
- * Thumbnail-strip variant of the deck: one main slide with a scrollable
- * row of clickable thumbnails beneath. Selection syncs both ways — the
- * strip follows the main carousel, and clicking a thumbnail drives it.
+ * Thumbnail-strip variant of the deck: one main PDF.js slide with a
+ * scrollable row of clickable thumbnails beneath. Selection syncs both
+ * ways — the strip follows the main carousel, and clicking a thumbnail
+ * drives it. Thumbnails render lazily (only those near the selection) so
+ * a long deck never renders every page at once.
  *
- * Built as an alternative to the plain deck so the two can be compared
- * before deciding where each belongs (see /work/[slug]/deck/thumbs).
+ * Built as an alternative to the plain deck so the two can be compared.
  */
 export default function CaseDeckThumbs({
   title,
+  slug,
   deck,
 }: {
   title: string;
+  /** Used so "back" returns to this project's row in the index. */
+  slug: string;
   deck: Deck;
 }) {
   const [mainRef, main] = useEmblaCarousel({ align: "center", duration: 22 }, [
@@ -35,7 +39,7 @@ export default function CaseDeckThumbs({
     if (!main || !thumbs) return;
     const i = main.selectedScrollSnap();
     setPage(i + 1);
-    thumbs.scrollTo(i); // keep the active thumbnail in view
+    thumbs.scrollTo(i);
   }, [main, thumbs]);
 
   useEffect(() => {
@@ -50,33 +54,31 @@ export default function CaseDeckThumbs({
   const pct = (page / deck.pages) * 100;
 
   return (
-    <div className="flex min-h-svh flex-col bg-bg">
-      <header className="flex items-baseline justify-between px-6 pt-8 md:px-12 lg:px-20">
-        <Link
-          href="/work"
-          className="text-overline uppercase tracking-[0.05em] text-text-muted transition-colors hover:text-accent"
-        >
-          ← Projects
-        </Link>
+    <div className="flex h-svh flex-col overflow-hidden bg-bg">
+      <header className="flex shrink-0 items-baseline justify-between px-6 pt-6 md:px-12 lg:px-20">
+        <FlipLink
+          href={`/work#${slug}`}
+          label="Projects"
+          underline
+          backArrow
+          className="text-overline uppercase tracking-[0.05em] text-text-muted"
+        />
         <p className="text-overline uppercase tracking-[0.05em] text-text-muted">
           {title} · {deck.label} · Thumbnail variant
         </p>
       </header>
 
       {/* Main slide */}
-      <div className="flex flex-1 items-center py-6">
-        <div className="embla w-full overflow-hidden" ref={mainRef}>
-          <div className="embla__container flex touch-pan-y">
+      <div className="flex min-h-0 flex-1 items-center py-4">
+        <div className="embla h-full w-full overflow-hidden" ref={mainRef}>
+          <div className="embla__container flex h-full touch-pan-y">
             {Array.from({ length: deck.pages }, (_, i) => (
-              <div className="embla__slide" key={i}>
-                <Image
-                  src={`${deck.dir}/p${i + 1}.jpg`}
-                  alt={`${title} — page ${i + 1}`}
-                  width={1400}
-                  height={990}
-                  className="h-auto w-full border border-border bg-black object-contain"
-                  priority={i === 0}
-                  loading={i === 0 ? undefined : "lazy"}
+              <div className="embla__slide h-full" key={i}>
+                <PdfPage
+                  url={deck.pdf}
+                  page={i + 1}
+                  active={Math.abs(i + 1 - page) <= 1}
+                  label={`${title} — page ${i + 1}`}
                 />
               </div>
             ))}
@@ -85,7 +87,7 @@ export default function CaseDeckThumbs({
       </div>
 
       {/* Thumbnail strip */}
-      <div className="px-6 md:px-12 lg:px-20">
+      <div className="shrink-0 px-6 md:px-12 lg:px-20">
         <div className="embla-thumbs overflow-hidden" ref={thumbRef}>
           <div className="flex gap-3">
             {Array.from({ length: deck.pages }, (_, i) => (
@@ -95,20 +97,17 @@ export default function CaseDeckThumbs({
                 onClick={() => main?.scrollTo(i)}
                 aria-label={deck.titles?.[i] ?? `Page ${i + 1}`}
                 aria-current={i + 1 === page ? "true" : undefined}
-                className={`embla-thumb relative shrink-0 border transition-all duration-300 ${
+                className={`embla-thumb relative h-16 shrink-0 overflow-hidden border transition-all duration-300 ${
                   i + 1 === page
                     ? "border-accent opacity-100"
                     : "border-border opacity-45 hover:opacity-80"
                 }`}
                 style={{ width: 92 }}
               >
-                <Image
-                  src={`${deck.dir}/p${i + 1}.jpg`}
-                  alt=""
-                  width={184}
-                  height={130}
-                  className="h-auto w-full bg-black object-contain"
-                  loading="lazy"
+                <PdfPage
+                  url={deck.pdf}
+                  page={i + 1}
+                  active={Math.abs(i + 1 - page) <= 8}
                 />
               </button>
             ))}
@@ -116,7 +115,7 @@ export default function CaseDeckThumbs({
         </div>
       </div>
 
-      <footer className="px-6 pb-8 pt-5 md:px-12 lg:px-20">
+      <footer className="shrink-0 px-6 pb-6 pt-4 md:px-12 lg:px-20">
         <p className="text-overline uppercase tracking-[0.05em] text-text-muted">
           {sectionTitle ? (
             <>

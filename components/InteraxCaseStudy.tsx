@@ -3,6 +3,7 @@ import Link from "next/link";
 import StorySection from "@/components/case-study/StorySection";
 import DoubleDiamond from "@/components/case-study/DoubleDiamond";
 import { getNextProject } from "@/lib/projects";
+import RippleText from "@/components/RippleText";
 
 /* ---- content (from interax-portfolio.pdf) --------------------------- */
 
@@ -112,12 +113,17 @@ export default function InteraxCaseStudy() {
       <header className="px-6 pt-10 md:px-12 lg:px-20">
         <div className="mx-auto max-w-6xl">
           <div className="flex items-center justify-between">
-            <Link
-              href="/work"
+            {/* A real navigation, not a client-side one: /work renders
+                progressively on soft nav, so the anchor target keeps moving
+                and the page visibly settles into place. A document load has
+                stable layout and lands on the section directly. */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+            <a
+              href="/work#interax"
               className="text-overline uppercase tracking-[0.05em] text-text-muted transition-colors hover:text-accent"
             >
               ← Projects
-            </Link>
+            </a>
             <span
               className="rounded-full border border-accent/50 px-3 py-1 text-overline font-medium uppercase tracking-[0.08em] text-accent"
               title="Year 3 of the MEng — DESE60001 Design Engineering Futures"
@@ -146,7 +152,7 @@ export default function InteraxCaseStudy() {
             className="relative mt-12 aspect-[16/10] overflow-hidden rounded-lg border border-border bg-black md:mt-16"
           >
             <Image
-              src="/work/interax/hero.png"
+              src="/work/interax/hero.jpg"
               alt="Interax sleeve and companion app"
               fill
               sizes="(min-width: 1024px) 1152px, 100vw"
@@ -463,9 +469,9 @@ export default function InteraxCaseStudy() {
               href={FIGMA_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-overline uppercase tracking-[0.05em] text-text-muted transition-colors hover:text-accent"
+              className="group text-overline uppercase tracking-[0.05em] text-text-muted"
             >
-              Open prototype ↗
+              <RippleText arrow="diagonal">Open prototype</RippleText>
             </a>
           </div>
           <div className="cs-embed">
@@ -489,15 +495,12 @@ export default function InteraxCaseStudy() {
             href={`/work/${next.slug}`}
             className="group mt-3 inline-flex items-baseline gap-3"
           >
-            <span className="text-heading font-semibold tracking-tight md:text-[40px]">
-              {next.title}
-            </span>
-            <span
-              aria-hidden
-              className="text-accent transition-transform duration-300 group-hover:translate-x-1"
+            <RippleText
+              arrow="right"
+              className="text-heading font-semibold tracking-tight md:text-[40px]"
             >
-              →
-            </span>
+              {next.title}
+            </RippleText>
           </Link>
         </div>
       </footer>

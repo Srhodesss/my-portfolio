@@ -117,8 +117,8 @@ Five projects, in this order unless a stronger order emerges:
 
 1. **Interax** — A biometric wearable and companion app that helps ADHD students track focus using heart rate, respiratory rate and EDA. Tags: UX Research, UI Design, Wearable, Data Visualisation.
 2. **Cardo** — An electrochromic budgeting card and app for young professionals. The card changes colour to reflect budget status; the app surfaces spending, savings and inefficiencies. Tags: Product Design, Fintech, UX/UI, CAD. Idea worth using: make the on-page card actually shift colour on scroll or hover, since that is what the product does.
-3. **AID (Sirho Frames)** — A rollerblading frame project. NEEDS CONTENT: copy, images and any CAD from Sinai's folder. Placeholder tags: Industrial Design, Design Engineering, CAD, Prototyping. Use clearly marked placeholders until real material is supplied.
-4. **Cuttleswish (IDE)** — An automatic pot stirrer for elderly cooks, with mouldable silicone attachments that fit different pots and an LED-ring and rotary-encoder interface, built to reduce strain in the kitchen. Tags: Industrial Design, Design Engineering, CAD, Electronics, User Research.
+3. **Sirho Frames** — A rollerblading frame project. NEEDS CONTENT: copy, images and any CAD from Sinai's folder. Placeholder tags: Industrial Design, Design Engineering, CAD, Prototyping. Use clearly marked placeholders until real material is supplied.
+4. **Cuttlesw!sh (IDE)** — An automatic pot stirrer for elderly cooks, with mouldable silicone attachments that fit different pots and an LED-ring and rotary-encoder interface, built to reduce strain in the kitchen. Tags: Industrial Design, Design Engineering, CAD, Electronics, User Research.
 5. **Brushed Lips (SDE)** — A refillable, recyclable aluminium lipstick system designed to cut single-use cosmetic packaging through a closed-loop refill model. Tags: Sustainable Design, Industrial Design, Packaging, CAD.
 
 Do not include any NBCUniversal or Hayu work.
@@ -153,7 +153,7 @@ Minimal: Work, About, Capabilities, Contact. Appears after the intro and hero lo
 Reusable layout, highly visual, easy to follow:
 Project hero, Challenge, Context, My role, Process, Research, Prototyping, CAD / technical development, Testing / iteration, Outcome, Reflection.
 
-Not every project fills every section. AID (Sirho Frames) can have a more custom, tactile treatment (subtle horizontal motion, technical diagrams, material callouts, a live 3D frame if a .glb is available). Use only what improves it.
+Not every project fills every section. Sirho Frames can have a more custom, tactile treatment (subtle horizontal motion, technical diagrams, material callouts, a live 3D frame if a .glb is available). Use only what improves it.
 
 ---
 

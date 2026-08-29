@@ -21,6 +21,10 @@
   --accent: #ff6b35;
   --scripture: #f3e8b3;
   --border: #1a1a1a;
+  /* Ground for cut-out product/UI images. */
+  --cutout: #ffffff;
+  /* Cardo's own warm card stock, sampled from its hero. */
+  --cutout-warm: #faebd6;
 }
 
 @theme inline {
@@ -31,6 +35,8 @@
   --color-accent: var(--accent);
   --color-scripture: var(--scripture);
   --color-border: var(--border);
+  --color-cutout: var(--cutout);
+  --color-cutout-warm: var(--cutout-warm);
 
   --font-sans: var(--font-primary), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-display-serif), Georgia, serif;
@@ -38,11 +44,14 @@
   /* Type scale (CLAUDE.md §5) — exposed as text-* utilities */
   --text-display: clamp(72px, 10vw, 148px);
   --text-section-word: clamp(64px, 9vw, 160px);
-  --text-heading: 32px;
-  --text-body-l: 24px;
-  --text-body-m: 20px;
-  --text-body-s: 16px;
-  --text-overline: 14px;
+  /* Fluid scale: every step scales with the viewport so the gaps between
+     lines and blocks stay proportional instead of drifting apart at wide
+     widths and crowding at narrow ones. */
+  --text-heading: clamp(25px, 2.35vw, 36px);
+  --text-body-l: clamp(19px, 1.7vw, 26px);
+  --text-body-m: clamp(17px, 1.4vw, 22px);
+  --text-body-s: clamp(15px, 1.12vw, 17px);
+  --text-overline: clamp(14px, 0.97vw, 15px);
 }
 
 body {
@@ -132,7 +141,11 @@ html.reveal-ready [data-reveal].is-in {
 
 /* Soft bottom fade on the watermark containers so the layer never runs
    into the hero's bottom nav (and stays identical in the intro copy). */
-.hebrew-mask {
+/* The watermark's bottom fade is opt-in. It exists to clear a band for
+   the nav bar while that bar sits across the bottom of the hero, so only
+   the hero wants it: the scripture intro reads as a cut-off page with it,
+   and the closing section no longer has a bar down there at all. */
+.hebrew-mask-fade {
   -webkit-mask-image: linear-gradient(
     to bottom,
     black 0%,
@@ -380,7 +393,6 @@ html.cursor-on * {
   cursor: none !important;
 }
 
-.site-cursor-dot,
 .site-cursor-ring {
   position: fixed;
   top: 0;
@@ -388,38 +400,72 @@ html.cursor-on * {
   z-index: 100;
   pointer-events: none;
   opacity: 0;
-}
-
-.site-cursor-dot {
-  width: 6px;
-  height: 6px;
-  margin: -3px 0 0 -3px;
-  border-radius: 9999px;
-  background: var(--text);
-  transition: scale 0.25s ease;
-}
-
-.site-cursor-ring {
   width: 34px;
   height: 34px;
   margin: -17px 0 0 -17px;
+  display: grid;
+  place-items: center;
   border: 1px solid color-mix(in srgb, var(--accent) 65%, transparent);
   border-radius: 9999px;
   transition:
+    width 0.3s ease,
+    height 0.3s ease,
+    margin 0.3s ease,
     scale 0.3s ease,
     border-color 0.3s ease;
 }
 
-.site-cursor-dot.cursor-hot {
-  scale: 0.5;
+/* The dot is a child of the ring and centred by the grid, so the two are
+   locked together at every position — no lag between them is possible. */
+.site-cursor-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--text);
+  transition:
+    scale 0.25s ease,
+    background 0.25s ease;
 }
 
+/* Interactive: the palette inverts — orange dot inside a white ring. */
 .site-cursor-ring.cursor-hot {
-  scale: 0.72;
-  border-color: var(--accent);
+  scale: 0.78;
+  border-color: var(--text);
 }
 
-.site-cursor-dot.cursor-suppressed,
+.site-cursor-dot.cursor-hot {
+  background: var(--accent);
+  scale: 1.15;
+}
+
+/* Over the folder the ring opens out and names the action. */
+.site-cursor-ring.cursor-open {
+  width: 74px;
+  height: 74px;
+  margin: -37px 0 0 -37px;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.site-cursor-label {
+  position: absolute;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.site-cursor-ring.cursor-open .site-cursor-label {
+  opacity: 1;
+}
+
+.site-cursor-ring.cursor-open .site-cursor-dot {
+  scale: 0;
+}
+
 .site-cursor-ring.cursor-suppressed {
   opacity: 0 !important;
 }
@@ -474,8 +520,9 @@ html.cursor-on * {
   --glow: 0;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   white-space: nowrap;
-  padding: 0.42em 1em;
+  padding: 0.3em 0.82em;
   border: 1px solid
     color-mix(
       in srgb,
@@ -487,7 +534,7 @@ html.cursor-on * {
   font-style: italic;
   font-size: clamp(20px, 2.6vw, 40px);
   color: var(--text-secondary);
-  cursor: grab;
+  cursor: pointer;
   touch-action: none;
   user-select: none;
   box-shadow:
@@ -496,13 +543,6 @@ html.cursor-on * {
     0 0 calc(var(--glow) * 22px) rgba(243, 232, 179, calc(var(--glow) * 0.55)),
     inset 0 0 calc(8px + var(--glow) * 12px)
       rgba(243, 232, 179, calc(var(--glow) * 0.16));
-}
-
-.pill-dragging {
-  cursor: grabbing;
-  box-shadow:
-    0 18px 44px rgba(0, 0, 0, 0.55),
-    0 0 30px rgba(243, 232, 179, 0.5);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -783,7 +823,9 @@ html.reveal-ready [data-reveal-text].is-in .rt-inner {
 
 .flip-roll {
   display: block;
-  transition: transform 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+  /* Deliberately unhurried: the roll used to snap at 0.42s, which read as
+     a flicker rather than a turn. */
+  transition: transform 0.78s cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform;
 }
 
@@ -863,8 +905,12 @@ html.reveal-ready .cs-stagger > [data-reveal]:nth-child(6) { transition-delay: 4
   backface-visibility: hidden;
 }
 
+/* Slides-per-view: the deck sets --slides on the container and each
+   slide takes an equal share of it. Single-up decks keep the framed
+   look (a hint of the neighbouring page either side); multi-up decks
+   fill the row evenly. */
 .embla__slide {
-  flex: 0 0 82%;
+  flex: 0 0 calc(100% / var(--slides, 1) * var(--slide-fill, 0.82));
   min-width: 0;
   padding-inline: 0.75rem;
   opacity: 0.35;
@@ -876,8 +922,22 @@ html.reveal-ready .cs-stagger > [data-reveal]:nth-child(6) { transition-delay: 4
 
 @media (min-width: 768px) {
   .embla__slide {
-    flex: 0 0 70%;
+    --slide-fill: 0.7;
   }
+}
+
+/* Multi-up: slides sit flush, and only the CENTRED slide carries full
+   opacity and scale — the flanking pair stay dimmed and slightly back, so
+   focus is unambiguous. */
+.embla[data-multi="true"] .embla__slide {
+  --slide-fill: 1;
+  opacity: 0.32;
+  transform: scale(0.9);
+}
+
+.embla[data-multi="true"] .embla__slide.is-selected {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .embla__slide.is-selected {
@@ -1026,5 +1086,661 @@ html.reveal-ready .cs-stagger > [data-reveal]:nth-child(6) { transition-delay: 4
   }
   .peek-scrim {
     backdrop-filter: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Work sequence — pills + Projects folder as one pinned stage         */
+/* (WorkSequence.tsx). The two stages overlap only when JS drives the  */
+/* timeline; without it (no-JS / reduced motion) they sit in normal    */
+/* flow, static and visible, and the black overlay stays hidden.       */
+/* ------------------------------------------------------------------ */
+.seq-live .pills-stage,
+.seq-live .projects-stage {
+  position: absolute;
+  inset: 0;
+}
+
+.seq-blackout {
+  opacity: 0;
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pills-heading,
+  .pill-row,
+  .work-folder,
+  .seq-caption {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Skills — scroll-scrubbed, slow reveal (Skills.tsx)                   */
+/* The mask lets each heading word rise from behind its own clip; the  */
+/* pre-reveal hidden state is gated on `skills-live` so no-JS /         */
+/* reduced-motion render everything static.                            */
+/* ------------------------------------------------------------------ */
+.skill-word-mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  padding-bottom: 0.14em;
+  margin-bottom: -0.14em;
+}
+
+.skill-word {
+  display: inline-block;
+  will-change: transform, opacity;
+}
+
+.skills-live .skill-word {
+  opacity: 0;
+}
+
+.skills-live .skill-tool {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skill-word,
+  .skill-tool {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .skill-line-fill {
+    transform: scaleX(1) !important;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Projects index — active-item transition                             */
+/* The label eases across and an accent rule draws in as a project      */
+/* becomes current, so the change reads as a move rather than a swap.   */
+/* ------------------------------------------------------------------ */
+.wi-nav {
+  position: relative;
+  transition:
+    color 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translateX(0);
+  opacity: 0.75;
+}
+
+.wi-nav-active {
+  transform: translateX(10px);
+  opacity: 1;
+}
+
+.wi-nav-mark {
+  position: absolute;
+  left: -14px;
+  top: 50%;
+  width: 8px;
+  height: 1px;
+  background: var(--accent);
+  transform: translateY(-50%) scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.wi-nav-active .wi-nav-mark {
+  transform: translateY(-50%) scaleX(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wi-nav,
+  .wi-nav-mark {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Skill logo shimmer                                                   */
+/* The moving-gradient mechanic from reactbits' ShinyText, adapted from */
+/* text to artwork: instead of background-clip:text, the highlight is    */
+/* masked by the logo's own alpha, so it sweeps across the mark and      */
+/* never across its empty box.                                          */
+/* ------------------------------------------------------------------ */
+.skill-shine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(
+    120deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.85) 50%,
+    transparent 65%
+  );
+  background-size: 200% auto;
+  background-repeat: no-repeat;
+  background-position: 150% center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  animation: skill-shine 3.4s ease-in-out infinite;
+}
+
+@keyframes skill-shine {
+  0% {
+    background-position: 150% center;
+  }
+  /* Hold off-screen so the sweep reads as an occasional catch of light
+     rather than a constant strobe. */
+  55%,
+  100% {
+    background-position: -50% center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skill-shine {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Pill flip                                                           */
+/* Clicking a pill turns it over to show what the role actually means,  */
+/* and the marquee pauses while it is open (WorkSequence.tsx). Both     */
+/* faces are laid out in the same grid cell so the pill sizes to the    */
+/* wider of the two and never resizes as it turns.                      */
+/* ------------------------------------------------------------------ */
+/* Button reset only — never `font: inherit`, which would wipe the pill's
+   display-serif italic set above. */
+.pill {
+  background: none;
+  cursor: pointer;
+}
+
+/* The whole pill turns: perspective sits on the slot, and the card itself
+   rotates so the border, glow and ground all travel with the text. */
+.pill-slot {
+  perspective: 900px;
+}
+
+.pill {
+  position: relative;
+  transform-style: preserve-3d;
+  transition:
+    transform 0.66s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.66s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pill.pill-flipped {
+  transform: rotateX(180deg);
+}
+
+.pill-inner {
+  display: grid;
+  transform-style: preserve-3d;
+}
+
+/* The pill hugs its word. Both faces used to share one grid cell, so the
+   cell — and therefore the pill — was sized by whichever face was wider,
+   which is always the definition. Every pill was consequently drawn to
+   the width of a sentence it was not showing. The back face is taken out
+   of flow so only the label sets the width, and the pill is given the
+   definition's measured width at the moment it flips. */
+/* Centred on the pill itself, so it stays centred as the pill resizes to
+   fit the definition. */
+.pill-face-back {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  font-size: 0.62em;
+  white-space: nowrap;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.pill-face {
+  grid-area: 1 / 1;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  white-space: nowrap;
+}
+
+.pill-face-back {
+  transform: rotateX(180deg);
+  color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pill-inner {
+    transition: none;
+  }
+  .pill-face-back {
+    display: none;
+  }
+}
+
+/* Opening hint: the cursor names the gesture for the first few seconds. */
+.site-cursor-ring.cursor-hint {
+  width: 86px;
+  height: 86px;
+  margin: -43px 0 0 -43px;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.site-cursor-ring.cursor-hint .site-cursor-label {
+  opacity: 1;
+}
+
+.site-cursor-ring.cursor-hint .site-cursor-dot {
+  scale: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Deck edge arrows                                                     */
+/* Quiet circular targets over the left and right edges of the page     */
+/* area. They sit above the slides but out of the reading path, and at  */
+/* the ends of the document they fade rather than vanish, so the        */
+/* control stays where the hand expects it.                             */
+/* ------------------------------------------------------------------ */
+.deck-arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  width: clamp(44px, 3.6vw, 58px);
+  height: clamp(44px, 3.6vw, 58px);
+  margin-top: calc(clamp(44px, 3.6vw, 58px) / -2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(10, 10, 10, 0.55);
+  backdrop-filter: blur(6px);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    color 0.25s ease,
+    border-color 0.25s ease,
+    background 0.25s ease,
+    opacity 0.25s ease;
+}
+
+.deck-arrow svg {
+  width: 45%;
+  height: 45%;
+}
+
+.deck-arrow-prev {
+  left: clamp(10px, 1.6vw, 24px);
+}
+
+.deck-arrow-next {
+  right: clamp(10px, 1.6vw, 24px);
+}
+
+.deck-arrow:hover:not(.is-off) {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(10, 10, 10, 0.8);
+}
+
+.deck-arrow.is-off {
+  opacity: 0.22;
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-arrow {
+    transition: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Ripple hover labels                                                  */
+/* The site's CTAs used to pair a word with an arrow that slid on       */
+/* hover. The wave replaces it: each character carries its own          */
+/* transition-delay, so the lift and the colour travel through the word */
+/* and back out again when the pointer leaves.                          */
+/* ------------------------------------------------------------------ */
+.ripple-text {
+  display: inline-flex;
+  white-space: pre;
+}
+
+.ripple-ch {
+  display: inline-block;
+  transition:
+    transform 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.36s ease;
+  /* Per-character delay is set inline. */
+}
+
+.group:hover .ripple-ch,
+.ripple-text:hover .ripple-ch,
+a:hover > .ripple-text .ripple-ch,
+button:hover > .ripple-text .ripple-ch {
+  transform: translateY(-0.16em);
+  color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ripple-ch {
+    transition: color 0.2s ease;
+  }
+
+  .group:hover .ripple-ch,
+  .ripple-text:hover .ripple-ch,
+  a:hover > .ripple-text .ripple-ch,
+  button:hover > .ripple-text .ripple-ch {
+    transform: none;
+  }
+}
+
+/* The CTA arrow rides the end of the ripple: it inherits the same
+   transition timing as the characters and is given the delay of one
+   character past the end of the word, so it moves after the wave has
+   passed through rather than at the same moment. It slides instead of
+   lifting, which is the motion it always had. */
+.ripple-arrow {
+  display: inline-block;
+  margin-left: 0.5em;
+  color: var(--accent);
+  transition: transform 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* The arrow lifts by the same amount as the characters before adding its
+   own sideways travel. Moving it on X alone left it pinned to the
+   baseline while the whole word rose past it, so the two halves of the
+   CTA came apart mid-hover. */
+.group:hover .ripple-arrow,
+.ripple-text:hover .ripple-arrow,
+a:hover > .ripple-text .ripple-arrow,
+button:hover > .ripple-text .ripple-arrow {
+  transform: translate(0.36em, -0.16em);
+}
+
+/* Same lift, plus the extra rise that makes the diagonal read as one. */
+.group:hover .ripple-arrow-diagonal,
+.ripple-text:hover .ripple-arrow-diagonal,
+a:hover > .ripple-text .ripple-arrow-diagonal,
+button:hover > .ripple-text .ripple-arrow-diagonal {
+  transform: translate(0.3em, -0.34em);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ripple-arrow {
+    transition: none;
+  }
+
+  .group:hover .ripple-arrow,
+  .ripple-text:hover .ripple-arrow,
+  a:hover > .ripple-text .ripple-arrow,
+  button:hover > .ripple-text .ripple-arrow,
+  .group:hover .ripple-arrow-diagonal,
+  .ripple-text:hover .ripple-arrow-diagonal,
+  a:hover > .ripple-text .ripple-arrow-diagonal,
+  button:hover > .ripple-text .ripple-arrow-diagonal {
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Hover rule                                                           */
+/* A hairline that draws out from the centre beneath a label on hover.  */
+/* Shared by the Contact link, the pinned Home link on Projects and     */
+/* every word in the nav bar, so hoverable words behave the same way    */
+/* wherever they appear. Timed with the word-flip so the two read as    */
+/* one gesture.                                                         */
+/* ------------------------------------------------------------------ */
+.has-rule {
+  position: relative;
+}
+
+.hover-rule {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.78s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+.has-rule:hover .hover-rule,
+.has-rule:focus-visible .hover-rule {
+  transform: scaleX(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hover-rule {
+    transition: none;
+  }
+
+  .has-rule:hover .hover-rule,
+  .has-rule:focus-visible .hover-rule {
+    transform: scaleX(1);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Scroll hint wiggle                                                   */
+/* The hint no longer times out, so it needs a way to keep asking       */
+/* without becoming noise. One long cycle carries a short nudge at the  */
+/* start and holds still for the rest, which gives a wiggle every three */
+/* seconds from a single animation and no JS timer. The motion is the   */
+/* CTA arrow's nudge turned downward, since that is the direction the   */
+/* label is asking for.                                                 */
+/*                                                                      */
+/* The ring itself is positioned by GSAP through its own transform, so  */
+/* the wiggle is applied to the label instead of fighting for it.       */
+/* ------------------------------------------------------------------ */
+@keyframes cursor-hint-nudge {
+  0%,
+  22%,
+  100% {
+    transform: translateY(0);
+  }
+  5% {
+    transform: translateY(3.5px);
+  }
+  10% {
+    transform: translateY(-1px);
+  }
+  16% {
+    transform: translateY(3.5px);
+  }
+}
+
+.site-cursor-ring.cursor-hint .site-cursor-label {
+  animation: cursor-hint-nudge 3s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-cursor-ring.cursor-hint .site-cursor-label {
+    animation: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Nav cross-fade veil                                                  */
+/* Covers the page while a nav jump happens, so the reader arrives in   */
+/* the target section rather than being scrolled through everything in  */
+/* between. Cover is quicker than reveal: leaving should feel           */
+/* decisive, arriving unhurried. Sits below the cursor (z 100) so the   */
+/* pointer stays visible throughout.                                    */
+/* ------------------------------------------------------------------ */
+.nav-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: var(--bg);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.85s ease-out;
+}
+
+.nav-veil.is-on {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.46s ease-in;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-veil {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Right-edge scroll index                                              */
+/* One segment per section, each sized to how much of the page that     */
+/* section occupies, so the rail maps the document rather than showing  */
+/* a flat percentage. Appears once the hero is behind you.              */
+/* ------------------------------------------------------------------ */
+.scroll-timeline {
+  position: fixed;
+  top: 50%;
+  right: clamp(18px, 2.4vw, 38px);
+  translate: 0 -50%;
+  z-index: 55;
+  height: min(62vh, 620px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+}
+
+.scroll-timeline.is-shown {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.st-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 2px;
+  height: 100%;
+  margin-left: auto;
+}
+
+.st-seg {
+  position: relative;
+  flex-grow: 0;
+  flex-shrink: 0;
+  width: 2px;
+  min-height: 6px;
+  padding: 0;
+  border: 0;
+  background: rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+}
+
+/* The rail is 2px wide; this gives it something worth aiming at without
+   changing how it looks. */
+.st-seg::before {
+  content: "";
+  position: absolute;
+  inset: 0 -9px;
+}
+
+.st-seg-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  transform: scaleY(0);
+  transform-origin: top center;
+}
+
+.st-seg:hover .st-seg-fill {
+  background: var(--text);
+}
+
+.st-label {
+  position: absolute;
+  right: 16px;
+  translate: 0 -50%;
+  white-space: nowrap;
+  font-size: var(--text-overline);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  opacity: 0;
+  transition:
+    opacity 0.4s ease,
+    top 0.25s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-timeline,
+  .st-label {
+    transition: none;
+  }
+}
+
+/* The rail would sit on top of the deck pages' own controls. */
+@media (max-width: 640px) {
+  .scroll-timeline {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Deck pages: no browser swipe-back                                    */
+/* A two-finger swipe right is a page turn inside the slideshow, not a  */
+/* request to leave it. overscroll-behavior is what actually stops the  */
+/* browser acting on the gesture; a wheel handler's preventDefault      */
+/* runs too late, since the navigation is decided on the first event.   */
+/* Scoped to the deck so the gesture behaves normally elsewhere.        */
+/* ------------------------------------------------------------------ */
+html.deck-open,
+html.deck-open body {
+  overscroll-behavior-x: none;
+}
+
+.embla {
+  overscroll-behavior-x: contain;
+}
+
+/* ------------------------------------------------------------------ */
+/* Back links                                                           */
+/* The arrow sits outside the flipping box so it can travel left while  */
+/* the label rolls. Inside the label text it could only ever flip with  */
+/* it. The extra padding gives the hover rule room to sit clear of the  */
+/* descenders instead of hugging the type.                              */
+/* ------------------------------------------------------------------ */
+.flip-back {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.55em;
+  padding-bottom: 0.85em;
+}
+
+.flip-back-arrow {
+  display: inline-block;
+  transition: transform 0.78s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.flip-back:hover .flip-back-arrow,
+.flip-back:focus-visible .flip-back-arrow {
+  transform: translateX(-0.4em);
+  color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flip-back-arrow {
+    transition: none;
+  }
+
+  .flip-back:hover .flip-back-arrow,
+  .flip-back:focus-visible .flip-back-arrow {
+    transform: none;
   }
 }

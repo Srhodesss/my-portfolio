@@ -14,7 +14,14 @@ import { getLenis } from "@/components/SmoothScroll";
  * Reduced motion runs without Lenis, so this is inert there.
  */
 
-const SLOW_SECTIONS = ["#about", "#work", "#skills"];
+// Per-section scroll multipliers: the lower the number, the more the
+// section resists the same gesture. #work is a pinned sequence that owns
+// its own timing, so it is not listed here.
+const SLOW_SECTIONS: Record<string, number> = {
+  "#about": 0.38,
+  "#skills": 0.26,
+  "#contact": 0.32,
+};
 
 /**
  * Lenis applies the input multipliers inside its own VirtualScroll
@@ -37,7 +44,6 @@ function setMultipliers(lenis: unknown, wheel: number, touch: number) {
     l.virtualScroll.options.touchMultiplier = touch;
   }
 }
-const SLOW = 0.28; // fraction of normal scroll speed inside those sections
 const NORMAL_WHEEL = 1;
 const NORMAL_TOUCH = 1;
 
@@ -45,12 +51,15 @@ export default function ScrollPacing() {
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-    const els = SLOW_SECTIONS.map((s) =>
-      document.querySelector<HTMLElement>(s),
-    ).filter((e): e is HTMLElement => !!e);
+    const els = Object.entries(SLOW_SECTIONS)
+      .map(([sel, speed]) => {
+        const el = document.querySelector<HTMLElement>(sel);
+        return el ? { el, speed } : null;
+      })
+      .filter((e): e is { el: HTMLElement; speed: number } => !!e);
     if (!els.length) return;
 
-    let slowed = false;
+    let current: number | null = null;
     let raf = 0;
 
     const apply = () => {
@@ -58,16 +67,21 @@ export default function ScrollPacing() {
       const lenis = getLenis();
       if (!lenis) return;
       const mid = window.innerHeight / 2;
-      // Is the viewport's middle inside one of the slow sections?
-      const inside = els.some((el) => {
+      // Which slow section, if any, holds the middle of the viewport?
+      const hit = els.find(({ el }) => {
         const r = el.getBoundingClientRect();
         return r.top <= mid && r.bottom >= mid;
       });
-      if (inside === slowed) return;
-      slowed = inside;
-      setMultipliers(lenis, inside ? SLOW : NORMAL_WHEEL, inside ? SLOW : NORMAL_TOUCH);
+      const speed = hit ? hit.speed : null;
+      if (speed === current) return;
+      current = speed;
+      setMultipliers(
+        lenis,
+        speed ?? NORMAL_WHEEL,
+        speed ?? NORMAL_TOUCH,
+      );
       // Reflect the current pacing so it is inspectable and stylable.
-      document.documentElement.dataset.pacing = inside ? "slow" : "normal";
+      document.documentElement.dataset.pacing = speed ? "slow" : "normal";
     };
 
     const onScroll = () => {

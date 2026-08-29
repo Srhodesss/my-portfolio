@@ -1,6 +1,6 @@
 /**
  * Featured work — order and facts per CLAUDE.md §6. Copy is seed copy
- * drawn from the brief; AID (Sirho Frames) awaits real content from Sinai
+ * drawn from the brief; Sirho Frames awaits real content from Sinai
  * and its placeholder sections are flagged with `placeholder: true` so the
  * template renders them clearly marked.
  */
@@ -12,6 +12,8 @@ export type ProjectImage = {
   aspect?: string;
   /** "contain" for UI screens on a panel; "cover" (default) for renders. */
   fit?: "cover" | "contain";
+  /** UI / screen captures: sit on white, not the dark ground. */
+  light?: boolean;
 };
 
 export type CaseSection = {
@@ -39,7 +41,7 @@ export const projects: Project[] = [
     impact:
       "A biometric wearable and app that lets ADHD students see their focus — live, and after every session.",
     tags: ["UX Research", "UI Design", "Wearable", "Data Visualisation"],
-    cover: { src: "/work/interax/hero.png", alt: "Interax app interface mockup" },
+    cover: { src: "/work/interax/hero.jpg", alt: "Interax app interface mockup" },
     sections: [
       {
         heading: "Challenge",
@@ -97,82 +99,8 @@ export const projects: Project[] = [
     ],
   },
   {
-    slug: "cardo",
-    title: "Cardo",
-    impact:
-      "A budgeting card that changes colour with your spending — feedback at the moment of payment, not the end of the month.",
-    tags: ["Product Design", "Fintech", "UX/UI", "CAD"],
-    cover: { src: "/work/cardo/hero.png", alt: "Cardo card and app mockup" },
-    sections: [
-      {
-        heading: "Challenge",
-        body: [
-          "Budgets live in apps people avoid opening. Overspending doesn't feel like anything at the moment it happens — the feedback arrives weeks later, as a statement.",
-        ],
-      },
-      {
-        heading: "Context",
-        body: [
-          "Cardo is an electrochromic budgeting card and companion app for young professionals. The card itself shifts colour to reflect budget status — feedback you can't ignore, carried in the object you already pay with. The app does the deeper work: surfacing spending, savings and the quiet inefficiencies in between.",
-        ],
-        // Phase 5 idea (CLAUDE.md): make this card actually shift colour
-        // on scroll or hover, since that is what the product does.
-        image: {
-          src: "/work/cardo/card.png",
-          alt: "The Cardo electrochromic card",
-          aspect: "8/3",
-          fit: "contain",
-        },
-      },
-      {
-        heading: "My role",
-        body: [
-          "Product design across hardware and software: the card's form and CAD, and the app's budgeting, diary and savings views.",
-        ],
-      },
-      {
-        heading: "Process",
-        body: [
-          "The app is organised around four honest views of money: a budget that maps to the card's colour state, a spending diary, net savings over time, and a view that hunts inefficiencies — the recurring costs that don't pull their weight.",
-        ],
-        image: {
-          src: "/work/cardo/budget.png",
-          alt: "Cardo budget view on iPhone",
-          aspect: "9/16",
-          fit: "contain",
-        },
-      },
-      {
-        heading: "Outcome",
-        body: [
-          "A budgeting system that moves feedback from the monthly statement to the moment of payment.",
-        ],
-      },
-    ],
-    gallery: [
-      {
-        src: "/work/cardo/diary.png",
-        alt: "Cardo spending diary on iPhone",
-        aspect: "9/16",
-        fit: "contain",
-      },
-      {
-        src: "/work/cardo/net-savings.png",
-        alt: "Cardo net savings view on iPhone",
-        aspect: "9/16",
-        fit: "contain",
-      },
-      {
-        src: "/work/cardo/inefficiencies.png",
-        alt: "Cardo inefficiencies view on iPhone",
-        aspect: "9/16",
-        fit: "contain",
-      },
-    ],
-  },
-  {
     slug: "aid-sirho-frames",
-    title: "AID — Sirho Frames",
+    title: "Sirho Frames",
     impact: "A rollerblading frame project. Full case study in progress.",
     tags: ["Industrial Design", "Design Engineering", "CAD", "Prototyping"],
     cover: { src: "/work/aid-sirho-frames/hero.jpg", alt: "Sirho Frames render" },
@@ -180,7 +108,7 @@ export const projects: Project[] = [
       {
         heading: "Challenge",
         body: [
-          "Placeholder — awaiting copy from Sinai. AID (Sirho Frames) is a rollerblading frame project spanning industrial design, design engineering, CAD and prototyping.",
+          "Placeholder — awaiting copy from Sinai. Sirho Frames is a rollerblading frame project spanning industrial design, design engineering, CAD and prototyping.",
         ],
         placeholder: true,
       },
@@ -209,8 +137,87 @@ export const projects: Project[] = [
     ],
   },
   {
+    slug: "cardo",
+    title: "Cardo",
+    impact:
+      "A budgeting card that changes colour with your spending — feedback at the moment of payment, not the end of the month.",
+    tags: ["Product Design", "Fintech", "UX/UI", "CAD"],
+    cover: { src: "/work/cardo/hero.jpg", alt: "Cardo card and app mockup" },
+    sections: [
+      {
+        heading: "Challenge",
+        body: [
+          "Budgets live in apps people avoid opening. Overspending doesn't feel like anything at the moment it happens — the feedback arrives weeks later, as a statement.",
+        ],
+      },
+      {
+        heading: "Context",
+        body: [
+          "Cardo is an electrochromic budgeting card and companion app for young professionals. The card itself shifts colour to reflect budget status — feedback you can't ignore, carried in the object you already pay with. The app does the deeper work: surfacing spending, savings and the quiet inefficiencies in between.",
+        ],
+        // Phase 5 idea (CLAUDE.md): make this card actually shift colour
+        // on scroll or hover, since that is what the product does.
+        image: {
+          src: "/work/cardo/card.png",
+          alt: "The Cardo electrochromic card",
+          aspect: "8/3",
+          fit: "contain",
+        light: true,
+        },
+      },
+      {
+        heading: "My role",
+        body: [
+          "Product design across hardware and software: the card's form and CAD, and the app's budgeting, diary and savings views.",
+        ],
+      },
+      {
+        heading: "Process",
+        body: [
+          "The app is organised around four honest views of money: a budget that maps to the card's colour state, a spending diary, net savings over time, and a view that hunts inefficiencies — the recurring costs that don't pull their weight.",
+        ],
+        image: {
+          src: "/work/cardo/budget.png",
+          alt: "Cardo budget view on iPhone",
+          aspect: "9/16",
+          fit: "contain",
+        light: true,
+        },
+      },
+      {
+        heading: "Outcome",
+        body: [
+          "A budgeting system that moves feedback from the monthly statement to the moment of payment.",
+        ],
+      },
+    ],
+    gallery: [
+      {
+        src: "/work/cardo/diary.png",
+        alt: "Cardo spending diary on iPhone",
+        aspect: "9/16",
+        fit: "contain",
+        light: true,
+      },
+      {
+        src: "/work/cardo/net-savings.png",
+        alt: "Cardo net savings view on iPhone",
+        aspect: "9/16",
+        fit: "contain",
+        light: true,
+      },
+      {
+        src: "/work/cardo/inefficiencies.png",
+        alt: "Cardo inefficiencies view on iPhone",
+        aspect: "9/16",
+        fit: "contain",
+        light: true,
+      },
+    ],
+  },
+  {
     slug: "cuttleswish",
-    title: "Cuttleswish",
+    title: "Cuttlesw!sh",
     impact:
       "An automatic pot stirrer that takes the repetitive strain out of cooking for elderly hands.",
     tags: [
@@ -221,8 +228,8 @@ export const projects: Project[] = [
       "User Research",
     ],
     cover: {
-      src: "/work/cuttleswish/hero.png",
-      alt: "Cuttleswish automatic pot stirrer",
+      src: "/work/cuttleswish/hero.jpg",
+      alt: "Cuttlesw!sh automatic pot stirrer",
     },
     sections: [
       {
@@ -234,7 +241,7 @@ export const projects: Project[] = [
       {
         heading: "Context",
         body: [
-          "Cuttleswish is an automatic pot stirrer built for elderly cooks. Mouldable silicone attachments fit the pots people already own, and an LED ring with a rotary encoder keeps the interface physical, legible and familiar — no screens in a steamy kitchen.",
+          "Cuttlesw!sh is an automatic pot stirrer built for elderly cooks. Mouldable silicone attachments fit the pots people already own, and an LED ring with a rotary encoder keeps the interface physical, legible and familiar — no screens in a steamy kitchen.",
         ],
       },
       {
@@ -250,7 +257,7 @@ export const projects: Project[] = [
         ],
         image: {
           src: "/work/cuttleswish/assembly.png",
-          alt: "Cuttleswish key assembly features render",
+          alt: "Cuttlesw!sh key assembly features render",
           aspect: "3/4",
         },
       },
@@ -261,17 +268,17 @@ export const projects: Project[] = [
         ],
         image: {
           src: "/work/cuttleswish/final-render.png",
-          alt: "Cuttleswish final render",
+          alt: "Cuttlesw!sh final render",
         },
       },
     ],
     gallery: [
       {
         src: "/work/cuttleswish/exploded-packaging.png",
-        alt: "Cuttleswish exploded packaging render",
+        alt: "Cuttlesw!sh exploded packaging render",
         aspect: "3/4",
       },
-      { src: "/work/cuttleswish/render.jpg", alt: "Cuttleswish render", aspect: "8/3" },
+      { src: "/work/cuttleswish/render.jpg", alt: "Cuttlesw!sh render", aspect: "8/3" },
     ],
   },
   {
@@ -281,7 +288,7 @@ export const projects: Project[] = [
       "A refillable aluminium lipstick system that closes the loop on single-use cosmetic packaging.",
     tags: ["Sustainable Design", "Industrial Design", "Packaging", "CAD"],
     cover: {
-      src: "/work/brushed-lips/hero.png",
+      src: "/work/brushed-lips/hero.jpg",
       alt: "Brushed Lips packaging render",
     },
     sections: [

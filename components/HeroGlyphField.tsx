@@ -4,7 +4,8 @@ import { useEffect, useRef } from "react";
 import HebrewWatermark from "@/components/HebrewWatermark";
 
 /**
- * Interactive shell around the shared Hebrew watermark in the hero.
+ * Interactive shell around the shared Hebrew watermark, used by the hero
+ * and again by the closing section at the foot of the homepage.
  * The watermark itself lives in HebrewWatermark (identical to the copy
  * inside the scripture intro overlay, including the per-row CSS drift).
  *
@@ -15,7 +16,9 @@ import HebrewWatermark from "@/components/HebrewWatermark";
  *  - the sequential shimmer: one word at a time, its characters cycling
  *    through a travelling highlight wave; when it finishes, another word
  *    somewhere else takes over — a continuous loop, one region at a time,
- *  - scroll-linked fade-out of the whole layer past the hero.
+ *  - a scroll-linked fade-out of the whole layer past the hero. The
+ *    closing section keeps its field up instead: it is the last thing on
+ *    the page, so there is nothing to fade out of the way of.
  *
  * Reduced motion: static watermark — no repulsion, glow or shimmer (the
  * drift is disabled in CSS); the positional scroll fade is kept.
@@ -39,38 +42,81 @@ const nextWordGap = () => {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export default function HeroGlyphField() {
+export default function HeroGlyphField({
+  variant = "hero",
+}: {
+  /** "closing" keeps the field up and drops the hero's bottom fade. */
+  variant?: "hero" | "closing";
+} = {}) {
   const fieldRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const field = fieldRef.current!;
+    const isHero = variant === "hero";
     const reduced = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
 
-    /* Scroll-linked fade-out of the whole layer. */
-    let fadeRaf = 0;
-    const applyFade = () => {
-      fadeRaf = 0;
-      const o = Math.max(
-        0,
-        Math.min(1, 1 - window.scrollY / (window.innerHeight * FADE_DISTANCE)),
-      );
-      field.style.opacity = String(o);
-      field.style.visibility = o === 0 ? "hidden" : "visible";
-    };
-    const onScroll = () => {
-      if (!fadeRaf) fadeRaf = requestAnimationFrame(applyFade);
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    applyFade();
+    const cleanups: (() => void)[] = [];
 
-    const cleanups: (() => void)[] = [
-      () => window.removeEventListener("scroll", onScroll),
-      () => {
-        if (fadeRaf) cancelAnimationFrame(fadeRaf);
-      },
-    ];
+    /* The closing field fades in on its own as the section arrives.
+       Without this it was at full strength the moment it mounted, so the
+       verses were already burning through behind the tail of the Contact
+       section, which reads as two backgrounds fighting. The ramp is
+       deliberately long: nothing is visible until the section's top has
+       climbed most of the way up the viewport, and it only reaches full
+       strength once the section owns the screen. */
+    if (!isHero) {
+      let inRaf = 0;
+      const applyIn = () => {
+        inRaf = 0;
+        const vh = window.innerHeight;
+        const top = field.getBoundingClientRect().top;
+        // The window ends short of the viewport top because this is the
+        // last section on the page: it can never scroll higher than the
+        // gap the nav bar leaves, so a ramp aimed at top = 0 would stop
+        // at roughly four fifths and never finish.
+        const o = Math.max(0, Math.min(1, (vh * 0.72 - top) / (vh * 0.52)));
+        field.style.opacity = o.toFixed(3);
+        field.style.visibility = o === 0 ? "hidden" : "visible";
+      };
+      const onScroll = () => {
+        if (!inRaf) inRaf = requestAnimationFrame(applyIn);
+      };
+      window.addEventListener("scroll", onScroll, { passive: true });
+      applyIn();
+      cleanups.push(
+        () => window.removeEventListener("scroll", onScroll),
+        () => {
+          if (inRaf) cancelAnimationFrame(inRaf);
+        },
+      );
+    }
+
+    /* Scroll-linked fade-out of the whole layer — hero only. */
+    if (isHero) {
+      let fadeRaf = 0;
+      const applyFade = () => {
+        fadeRaf = 0;
+        const o = Math.max(
+          0,
+          Math.min(1, 1 - window.scrollY / (window.innerHeight * FADE_DISTANCE)),
+        );
+        field.style.opacity = String(o);
+        field.style.visibility = o === 0 ? "hidden" : "visible";
+      };
+      const onScroll = () => {
+        if (!fadeRaf) fadeRaf = requestAnimationFrame(applyFade);
+      };
+      window.addEventListener("scroll", onScroll, { passive: true });
+      applyFade();
+      cleanups.push(
+        () => window.removeEventListener("scroll", onScroll),
+        () => {
+          if (fadeRaf) cancelAnimationFrame(fadeRaf);
+        },
+      );
+    }
 
     if (!reduced) {
       const rows = Array.from(field.querySelectorAll<HTMLElement>(".wm-row"));
@@ -143,22 +189,60 @@ export default function HeroGlyphField() {
         anyActive = active;
       };
 
+      // Whether this field is on screen, asked of the field itself. It
+      // used to be a hero-specific scroll test, which left the closing
+      // section's copy permanently inert.
+      const offScreen = () => {
+        const r = field.getBoundingClientRect();
+        return r.bottom < 0 || r.top > window.innerHeight;
+      };
+
       const onMove = (e: PointerEvent) => {
-        if (window.scrollY > window.innerHeight) return; // hero out of view
+        if (offScreen()) return;
         pointer = { x: e.clientX, y: e.clientY };
-        if (!moveRaf) moveRaf = requestAnimationFrame(apply);
       };
       const onLeave = () => {
         pointer = null;
-        if (!moveRaf) moveRaf = requestAnimationFrame(apply);
       };
+      // `pointerover` fires when the cursor is already resting over the page
+      // at load; without it the field stays dark until the user happens to
+      // move the mouse.
+      window.addEventListener("pointerover", onMove);
       window.addEventListener("pointermove", onMove);
       document.documentElement.addEventListener("pointerleave", onLeave);
+
+      // The rows drift continuously, so the glow has to be recomputed every
+      // frame — recomputing only on pointermove left the highlighted pool
+      // frozen against moving text until the user jiggled the cursor.
+      const tick = () => {
+        moveRaf = requestAnimationFrame(tick);
+        if (!pointer && !anyActive) return;
+        if (offScreen()) return;
+        apply();
+      };
+      moveRaf = requestAnimationFrame(tick);
+
       cleanups.push(() => {
+        window.removeEventListener("pointerover", onMove);
         window.removeEventListener("pointermove", onMove);
         document.documentElement.removeEventListener("pointerleave", onLeave);
         if (moveRaf) cancelAnimationFrame(moveRaf);
       });
+
+      // Re-measure once the intro hands over to the hero: the field is laid
+      // out behind the overlay, and anything that shifts during the
+      // handover would otherwise leave the centres stale until a resize.
+      const onHandover = new MutationObserver(() => {
+        if (!document.documentElement.classList.contains("intro-active")) {
+          measure();
+          onHandover.disconnect();
+        }
+      });
+      onHandover.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ["class"],
+      });
+      cleanups.push(() => onHandover.disconnect());
 
       /* --- Sequential word shimmer ----------------------------------- */
       // One word at a time: split it into characters, run a staggered
@@ -191,7 +275,7 @@ export default function HeroGlyphField() {
     }
 
     return () => cleanups.forEach((fn) => fn());
-  }, []);
+  }, [variant]);
 
   return (
     <div
@@ -200,7 +284,9 @@ export default function HeroGlyphField() {
     >
       <div
         ref={fieldRef}
-        className="hebrew-mask absolute inset-0 overflow-hidden"
+        className={`absolute inset-0 overflow-hidden ${
+          variant === "hero" ? "hebrew-mask-fade" : ""
+        }`}
       >
         <HebrewWatermark />
       </div>

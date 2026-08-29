@@ -2,14 +2,17 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Project, ProjectImage } from "@/lib/projects";
 import { getNextProject } from "@/lib/projects";
+import RippleText from "@/components/RippleText";
 
 function Figure({ image, sizes }: { image: ProjectImage; sizes: string }) {
   return (
     <div
       data-reveal
-      className={`relative overflow-hidden rounded-lg border border-border bg-black ${
-        image.fit === "contain" ? "p-6 md:p-10" : ""
-      }`}
+      className={`relative overflow-hidden rounded-lg border border-border ${
+        // Screen captures and cut-out renders are drawn for a light
+        // ground; on black their outlines disappear.
+        image.light ? "bg-cutout" : "bg-black"
+      } ${image.fit === "contain" ? "p-6 md:p-10" : ""}`}
       style={{ aspectRatio: image.aspect ?? "4/3" }}
     >
       <Image
@@ -28,12 +31,12 @@ export default function CaseStudyLayout({ project }: { project: Project }) {
 
   return (
     <article className="mx-auto max-w-5xl px-6 pb-24 pt-16 md:px-12 md:pt-24">
-      <Link
-        href="/work"
+      <a
+        href={`/work#${project.slug}`}
         className="text-overline uppercase tracking-[0.05em] text-text-muted transition-colors hover:text-accent"
       >
         ← Projects
-      </Link>
+      </a>
 
       <header className="mt-12 md:mt-16">
         <p className="text-overline uppercase tracking-[0.05em] text-text-muted">
@@ -124,17 +127,14 @@ export default function CaseStudyLayout({ project }: { project: Project }) {
         </p>
         <Link
           href={`/work/${next.slug}`}
-          className="group mt-3 inline-flex items-baseline gap-3"
+          className="group mt-3 inline-flex items-baseline"
         >
-          <span className="text-heading font-semibold tracking-tight md:text-[40px]">
-            {next.title}
-          </span>
-          <span
-            aria-hidden
-            className="text-accent transition-transform duration-300 group-hover:translate-x-1"
+          <RippleText
+            arrow="right"
+            className="text-heading font-semibold tracking-tight md:text-[40px]"
           >
-            →
-          </span>
+            {next.title}
+          </RippleText>
         </Link>
       </footer>
     </article>
