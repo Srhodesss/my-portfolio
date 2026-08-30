@@ -14,7 +14,9 @@
  * Sirho Frames names its software outright ("Fusion 360", "Grasshopper.
  * Voronoi Generation", "Blender cycles"); Interax names Figma for UI/UX,
  * Blender for 3D and Python for biometric analysis; Cuttlesw!sh names
- * Blender for renders and Illustrator for the packaging net.
+ * Blender for renders and Illustrator for the packaging net. Fusion 360
+ * on Cuttlesw!sh is Sinai's own account of the CAD work; the group
+ * portfolio says "Final CAD Model" without naming the package.
  *
  * Tools are rendered as marks only, with no text label, so the row reads
  * as a set of software rather than a second list of skills. Each name
@@ -62,7 +64,7 @@ export const WORK_META: Record<string, WorkMeta> = {
   interax: {
     navLabel: "Interax",
     year: "Mar 2025",
-    module: "Imperial: Design Engineering Futures",
+    module: "Imperial · Design Engineering Futures",
     summary:
       "ADHD students are asked to manage their focus without ever being shown it. Interax is a biometric wearable and companion app that reads heart rate, respiratory rate and electrodermal activity, and turns them into a record of focus a student can actually read.",
     skills: [
@@ -82,7 +84,7 @@ export const WORK_META: Record<string, WorkMeta> = {
   cardo: {
     navLabel: "Cardo",
     year: "Dec 2024",
-    module: "Imperial: Innovation & Entrepreneurship",
+    module: "Imperial · Innovation & Entrepreneurship",
     summary:
       "Budgeting apps only work for people willing to open them, and overspending registers as nothing at the moment it happens. Cardo moves the feedback onto the card itself: an electrochromic surface that shifts colour as a budget is spent down, with an app that categorises spending and forecasts the month.",
     skills: [
@@ -100,7 +102,7 @@ export const WORK_META: Record<string, WorkMeta> = {
   "aid-sirho-frames": {
     navLabel: "Sirho Frames",
     year: "Mar 2025",
-    module: "Imperial: Advanced Industrial Design",
+    module: "Imperial · Advanced Industrial Design",
     summary:
       "A rollerblading frame carries every gram directly under the foot, and adjusting the wheels means bringing an allen key that is easy to leave at home. Sirho Frames answers both: a lighter structure that gives up no stiffness, and the tool carried inside the frame.",
     skills: [
@@ -117,7 +119,7 @@ export const WORK_META: Record<string, WorkMeta> = {
   cuttleswish: {
     navLabel: "Cuttlesw!sh",
     year: "Jun 2024",
-    module: "Imperial: Industrial Design Engineering",
+    module: "Imperial · Industrial Design Engineering",
     summary:
       "Stirring is a long, low-grade strain that falls hardest on older cooks, and giving it up usually means giving up the dishes a person has cooked their whole life. Cuttlesw!sh is an automatic pot stirrer with silicone attachments that fit different pots, set through an LED ring and rotary encoder that need no fine grip or close vision.",
     skills: [
@@ -128,14 +130,14 @@ export const WORK_META: Record<string, WorkMeta> = {
       "CAD",
       "Packaging Design",
     ],
-    tools: [TOOL.blender, TOOL.illustrator],
+    tools: [TOOL.fusion, TOOL.blender, TOOL.illustrator],
     role: "Chief Operations Officer on a team of four, owning user experience and manufacture. I ran the packaging end to end, researched safety, compliance and labelling, wrote the user guide, soldered the circuit, and did the 3D printing, painting and assembly of the final unit.",
     links: [{ label: "View case study", href: "/work/cuttleswish/deck" }],
   },
   "brushed-lips": {
     navLabel: "Brushed Lips",
     year: "Dec 2024",
-    module: "Imperial: Sustainable Design Engineering",
+    module: "Imperial · Sustainable Design Engineering",
     summary:
       "A lipstick tube is built to be discarded: a plastic spinning mechanism sleeved in metal and glued shut, with a third of the bullet buried to hold it upright and never used. Only 9% of cosmetic packaging reaches a recycling plant. Brushed Lips replaces it with a case machined from one piece of aluminium, where a slider does the spinning mechanism's job and only the bullet is replaced.",
     skills: [
@@ -153,7 +155,7 @@ export const WORK_META: Record<string, WorkMeta> = {
   verdure: {
     navLabel: "Verdure",
     year: "May 2022",
-    module: "Dulwich College: Product Design NEA Project",
+    module: "Dulwich College · Product Design NEA Project",
     summary:
       "A keen gardener collects more plants than a patio can hold, and through summer they sit on the ground with nowhere to go. Verdure is a five-tier outdoor plant stand built for one client: hardwood shelves on a black-painted metal frame, holding twelve to fifteen pots clear of the floor with storage underneath.",
     skills: [
@@ -166,6 +168,6 @@ export const WORK_META: Record<string, WorkMeta> = {
     ],
     tools: [TOOL.fusion, TOOL.powerpoint],
     role: "Run end to end and made by hand. I interviewed the client and ran a task analysis to turn what he wanted into testable specification points, chose oak over iroko on sustainability grounds, CNC routed the shelf profiles from my own CAD template, built a jig for repeatable 45 degree mitres, and finished in Osmo Oil.",
-    links: [{ label: "Read the case study", href: "/work/verdure" }],
+    links: [{ label: "View case study", href: "/work/verdure/deck" }],
   },
 };

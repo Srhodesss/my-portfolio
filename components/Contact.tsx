@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { splitText } from "animejs";
 import RippleText from "@/components/RippleText";
 import FlipLink from "@/components/FlipLink";
+import { getLenis } from "@/components/SmoothScroll";
 
 /**
  * Contact — one large confident heading, a single call to action.
@@ -20,7 +21,8 @@ import FlipLink from "@/components/FlipLink";
 
 const LINKS = [
   { label: "LinkedIn", href: "https://www.linkedin.com/in/sinairhodes/" },
-  // TODO: drop the real CV at public/cv.pdf
+  // Served from public/cv.pdf, copied from raw-assets/Sinai Rhodes CV.pdf
+  // by scripts/sync-cv.sh so the served copy stays a clean URL.
   { label: "CV", href: "/cv.pdf" },
 ];
 
@@ -101,11 +103,58 @@ export default function Contact() {
     };
     raf = requestAnimationFrame(frame);
 
-    return () => {
+  return () => {
       cancelAnimationFrame(raf);
       leadSplit.revert();
       charSplit.revert();
       section.classList.remove("contact-live");
+    };
+  }, []);
+
+  /* Opening the mail client blurs the window, and on the way back the
+     browser and Lenis can disagree about where the page was: Lenis holds
+     its own scroll target and re-syncs to it on focus, which nudges the
+     page off the position the reader left. Pin the position at the
+     moment the link is used and put it back if it has drifted.
+
+     Harmless when nothing moves, which is the case whenever the mail
+     client opens in another space or the click is cancelled. */
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) return;
+
+    let parked: number | null = null;
+
+    const onClick = (e: MouseEvent) => {
+      const el = (e.target as HTMLElement | null)?.closest("a");
+      if (!el?.getAttribute("href")?.startsWith("mailto:")) return;
+      parked = window.scrollY;
+    };
+
+    const restore = () => {
+      if (parked === null) return;
+      const want = parked;
+      // Two frames: one for the browser to finish restoring focus, one
+      // for Lenis to have applied whatever it thinks the position is.
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          if (Math.abs(window.scrollY - want) > 2) {
+            const lenis = getLenis();
+            if (lenis) lenis.scrollTo(want, { immediate: true, force: true });
+            else window.scrollTo(0, want);
+          }
+          parked = null;
+        }),
+      );
+    };
+
+    section.addEventListener("click", onClick);
+    window.addEventListener("focus", restore);
+    document.addEventListener("visibilitychange", restore);
+    return () => {
+      section.removeEventListener("click", onClick);
+      window.removeEventListener("focus", restore);
+      document.removeEventListener("visibilitychange", restore);
     };
   }, []);
 
@@ -115,7 +164,7 @@ export default function Contact() {
         ref={pinRef}
         className="flex min-h-svh flex-col justify-center px-6 py-28 md:px-12 md:py-40 lg:px-20"
       >
-        <p className="text-overline uppercase tracking-[0.05em] text-text-muted">
+        <p className="section-label section-label-heading">
           Contact
         </p>
 

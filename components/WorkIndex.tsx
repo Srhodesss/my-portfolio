@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import FlipLink from "@/components/FlipLink";
 import RevealText from "@/components/RevealText";
 import { animate, onScroll, stagger } from "animejs";
@@ -10,7 +10,6 @@ import { getLenis } from "@/components/SmoothScroll";
 import { projects } from "@/lib/projects";
 import { WORK_MEDIA, type WorkImage } from "@/lib/work-images";
 import { WORK_META } from "@/lib/work-meta";
-import { useProjectPeek, peekId } from "@/components/ProjectPeek";
 import RippleText from "@/components/RippleText";
 
 /**
@@ -78,7 +77,21 @@ function Figure({
             : "bg-cutout"
           : "border border-border bg-black"
       } ${layoutId ? "peek-card" : ""}`}
-      style={{ aspectRatio: `${image.w} / ${image.h}` }}
+      style={{
+        aspectRatio: `${image.w} / ${image.h}`,
+        // Written inline rather than as an arbitrary Tailwind class: a
+        // clamped border-width does not survive the class scanner.
+        // Top and bottom only: the artwork already runs to the left and
+        // right edges of its white ground, so side borders read as extra
+        // margin rather than a frame.
+        ...(image.bordered
+          ? {
+              borderTop: "clamp(10px, 1.3vw, 20px) solid #ffffff",
+              borderBottom: "clamp(10px, 1.3vw, 20px) solid #ffffff",
+              boxSizing: "border-box" as const,
+            }
+          : null),
+      }}
     >
       <Image
         src={image.src}
@@ -123,8 +136,82 @@ function Field({
 }
 
 export default function WorkIndex() {
+  /* Returning from a case study lands on that project's row.
+
+     This reads a value the deck writes on its way out rather than the
+     URL hash: the App Router commits the route, scrolls it to the top,
+     and only then writes the hash, so hash-based positioning was undone
+     on every single project. The hash is still honoured as a fallback
+     for someone arriving on a /work#slug link directly.
+
+     The paint is held until the row's offset stops moving, because the
+     page mounts progressively and positioning early lands short. */
+  useLayoutEffect(() => {
+    let slug = "";
+    try {
+      slug = sessionStorage.getItem("work-return") ?? "";
+    } catch {
+      /* private mode */
+    }
+    if (!slug) slug = decodeURIComponent(window.location.hash.slice(1));
+    if (!slug) return;
+
+    const root = document.documentElement;
+    root.style.visibility = "hidden";
+
+    let done = false;
+    let last = Number.NaN;
+    let stable = 0;
+    const started = performance.now();
+
+    const finish = (el: HTMLElement | null) => {
+      if (done) return;
+      done = true;
+      if (el) {
+        const top = Math.round(el.getBoundingClientRect().top + window.scrollY);
+        // Lenis caches the document height. Arriving from a deck page,
+        // which is exactly one viewport tall with no scrolling, it still
+        // believed the page could not scroll and silently clamped every
+        // target to 0 — the scroll position never moved at all. Re-measure
+        // before asking it to go anywhere.
+        const lenis = getLenis() as {
+          resize?: () => void;
+          scrollTo: (t: number, o?: Record<string, unknown>) => void;
+        } | null;
+        lenis?.resize?.();
+        lenis?.scrollTo(top, { immediate: true, force: true });
+        // Belt and braces: if Lenis still refuses, drive the window.
+        if (Math.abs(window.scrollY - top) > 4) window.scrollTo(0, top);
+      }
+      // Cleared only now: ScrollReset reads this to know it should keep
+      // its hands off the scroll position while a return is in flight.
+      try {
+        sessionStorage.removeItem("work-return");
+      } catch {
+        /* private mode */
+      }
+      root.style.visibility = "";
+    };
+
+    const settle = () => {
+      if (done) return;
+      const el = document.getElementById(slug);
+      const off = el ? Math.round(el.offsetTop) : Number.NaN;
+      stable = off === last ? stable + 1 : 0;
+      last = off;
+      if (el && stable >= 2) return finish(el);
+      if (performance.now() - started > 1500) return finish(el);
+      requestAnimationFrame(settle);
+    };
+    requestAnimationFrame(settle);
+
+    return () => {
+      done = true;
+      root.style.visibility = "";
+    };
+  }, []);
+
   const rootRef = useRef<HTMLDivElement>(null);
-  const peek = useProjectPeek();
   const homeRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(projects[0]?.slug ?? "");
 
@@ -285,10 +372,10 @@ export default function WorkIndex() {
         {/* Persistent sidebar */}
         <nav aria-label="Projects" className="hidden lg:block">
           <div className="sticky top-28">
-            <p className="text-overline uppercase tracking-[0.08em] text-text-muted">
-              Index
-            </p>
-            <ul className="mt-5 space-y-1">
+            {/* No "Index" heading: the numbered list under it is
+                self-evidently one, and the page already carries its own
+                title. */}
+            <ul className="space-y-1">
               {projects.map((p, i) => {
                 const meta = WORK_META[p.slug];
                 const isActive = active === p.slug;
@@ -383,19 +470,32 @@ export default function WorkIndex() {
                             the two are never read as one list. Each mark
                             comes from the same set the Skills section
                             uses. */}
+                        {/* Spread across the full width of the column
+                            rather than clustered in the middle, so the
+                            marks read as a set belonging to the whole
+                            Skills field. space-between with a minimum gap
+                            keeps a two-mark row from flying apart. */}
                         {meta.tools.length > 0 && (
-                          <ul className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-4">
+                          <ul className="mt-7 flex w-full flex-wrap items-center justify-between gap-x-5 gap-y-4 pr-2">
                             {meta.tools.map((tool) => (
                               <li key={tool.name} title={tool.name}>
                                 <Image
                                   src={tool.icon}
                                   alt={tool.name}
-                                  width={56}
-                                  height={56}
-                                  className="h-14 w-14 object-contain"
+                                  width={64}
+                                  height={64}
+                                  className="h-16 w-16 object-contain"
                                 />
                               </li>
                             ))}
+                            {/* A pair spread edge to edge reads as two
+                                unrelated marks. An empty third slot makes
+                                space-between place them at the left and
+                                the centre, matching the rhythm of the
+                                three-tool rows. */}
+                            {meta.tools.length === 2 && (
+                              <li aria-hidden className="h-16 w-16" />
+                            )}
                           </ul>
                         )}
                       </>
@@ -434,27 +534,17 @@ export default function WorkIndex() {
                 {/* Gallery — hero then numbered collage, sharp corners */}
                 {media && (
                   <div className="mt-12 space-y-4 md:mt-16 md:space-y-6">
-                    {/* Plain click opens the peek, which morphs from this
-                        card; the href stays real so modifier-clicks, middle
-                        clicks and crawlers still reach the case study. */}
-                    <Link
-                      href={`/work/${project.slug}`}
-                      className="wi-hero block"
-                      aria-label={`${project.title} — quick look`}
-                      onClick={(e) => {
-                        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
-                          return;
-                        e.preventDefault();
-                        peek.open(project.slug);
-                      }}
-                    >
+                    {/* Not a link. The cover used to open a quick-look
+                        peek on click; the row's own "View case study"
+                        link is the way in now, so this is just the
+                        project's opening image. */}
+                    <div className="wi-hero block">
                       <Figure
                         image={media.hero}
                         alt={project.cover.alt}
                         eager={i === 0}
-                        layoutId={peekId(project.slug)}
                       />
-                    </Link>
+                    </div>
                     {media.collage.length > 0 && (
                       <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-12 md:gap-6">
                         {media.collage.map((image, j) => (

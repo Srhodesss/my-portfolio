@@ -20,6 +20,10 @@ import HebrewWatermark from "@/components/HebrewWatermark";
  *    closing section keeps its field up instead: it is the last thing on
  *    the page, so there is nothing to fade out of the way of.
  *
+ * Both variants carry the bottom fade, which clears a band for the nav
+ * bar sitting at the foot of each of these sections. Only the scripture
+ * intro goes without it, and that renders HebrewWatermark directly.
+ *
  * Reduced motion: static watermark — no repulsion, glow or shimmer (the
  * drift is disabled in CSS); the positional scroll fade is kept.
  */
@@ -284,9 +288,7 @@ export default function HeroGlyphField({
     >
       <div
         ref={fieldRef}
-        className={`absolute inset-0 overflow-hidden ${
-          variant === "hero" ? "hebrew-mask-fade" : ""
-        }`}
+        className="hebrew-mask-fade absolute inset-0 overflow-hidden"
       >
         <HebrewWatermark />
       </div>

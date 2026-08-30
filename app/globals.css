@@ -7,7 +7,13 @@
   src: url("/fonts/hebrew-background.ttf") format("truetype");
   font-weight: normal;
   font-style: normal;
-  font-display: swap;
+  /* `swap` painted a fallback Hebrew serif on the first frame and then
+     visibly re-flowed the whole watermark when the real face arrived.
+     `block` holds the glyphs invisible instead, and the preload in
+     app/layout.tsx starts the download in the document head so that
+     wait is measured in a frame or two rather than a flash of the
+     wrong typeface. */
+  font-display: block;
 }
 
 /* ------------------------------------------------------------------ */
@@ -448,11 +454,15 @@ html.cursor-on * {
   backdrop-filter: blur(2px);
 }
 
+/* Set like "I am a…" — the display sans, semibold, tight — and left in
+   sentence case rather than shouted in caps. */
 .site-cursor-label {
   position: absolute;
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: -0.01em;
+  text-transform: none;
   color: var(--accent);
   opacity: 0;
   transition: opacity 0.25s ease;
@@ -1269,9 +1279,17 @@ html.reveal-ready .cs-stagger > [data-reveal]:nth-child(6) { transition-delay: 4
 .pill {
   position: relative;
   transform-style: preserve-3d;
+  /* Longer, and on a gentler curve. cubic-bezier(0.22, 1, 0.36, 1) is
+     an aggressive out-ease: almost all of the travel happens in the
+     first third, so the turn snapped away and then arrived hard. This
+     curve accelerates and decelerates evenly, so the pill sets off
+     softly and settles rather than stopping. */
+  /* Separate durations, because the two now happen one after the other
+     rather than together: the width settles, then the pill turns. Keep
+     these in step with FLIP_WIDEN_MS / FLIP_TURN_MS in WorkSequence. */
   transition:
-    transform 0.66s cubic-bezier(0.22, 1, 0.36, 1),
-    width 0.66s cubic-bezier(0.22, 1, 0.36, 1);
+    transform 0.62s cubic-bezier(0.65, 0, 0.35, 1),
+    width 0.38s cubic-bezier(0.65, 0, 0.35, 1);
 }
 
 .pill.pill-flipped {
@@ -1542,29 +1560,34 @@ button:hover > .ripple-text .ripple-arrow-diagonal {
 /* The ring itself is positioned by GSAP through its own transform, so  */
 /* the wiggle is applied to the label instead of fighting for it.       */
 /* ------------------------------------------------------------------ */
-@keyframes cursor-hint-nudge {
+/* The travelling wave the CTAs use on hover, running on its own here
+   because there is nothing to hover: each character lifts and settles on
+   the same curve, stepped by index, and the cycle then rests so the
+   whole thing reads as an occasional prompt rather than a constant
+   fidget. */
+@keyframes cursor-ch-wave {
   0%,
-  22%,
+  26%,
   100% {
     transform: translateY(0);
   }
-  5% {
-    transform: translateY(3.5px);
-  }
   10% {
-    transform: translateY(-1px);
-  }
-  16% {
-    transform: translateY(3.5px);
+    transform: translateY(-3.5px);
   }
 }
 
-.site-cursor-ring.cursor-hint .site-cursor-label {
-  animation: cursor-hint-nudge 3s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+.cursor-ch {
+  display: inline-block;
+}
+
+/* Only the scroll prompt animates; "Open" and "Top" name what a click
+   will do and do not need to ask for attention. */
+.site-cursor-ring.cursor-hint .cursor-ch {
+  animation: cursor-ch-wave 3s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .site-cursor-ring.cursor-hint .site-cursor-label {
+  .site-cursor-ring.cursor-hint .cursor-ch {
     animation: none;
   }
 }
@@ -1611,7 +1634,7 @@ button:hover > .ripple-text .ripple-arrow-diagonal {
   right: clamp(18px, 2.4vw, 38px);
   translate: 0 -50%;
   z-index: 55;
-  height: min(62vh, 620px);
+  height: min(38vh, 340px);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.6s ease;
@@ -1625,7 +1648,7 @@ button:hover > .ripple-text .ripple-arrow-diagonal {
 .st-bar {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
   width: 2px;
   height: 100%;
   margin-left: auto;
@@ -1636,11 +1659,21 @@ button:hover > .ripple-text .ripple-arrow-diagonal {
   flex-grow: 0;
   flex-shrink: 0;
   width: 2px;
-  min-height: 6px;
+  min-height: 5px;
   padding: 0;
   border: 0;
   background: rgba(255, 255, 255, 0.1);
   cursor: pointer;
+  /* Grows toward the page rather than off the edge. */
+  transform-origin: right center;
+  transition:
+    background-color 0.4s ease,
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.st-seg:hover {
+  background-color: rgba(255, 255, 255, 0.24);
+  transform: scaleX(2.5);
 }
 
 /* The rail is 2px wide; this gives it something worth aiming at without
@@ -1657,21 +1690,37 @@ button:hover > .ripple-text .ripple-arrow-diagonal {
   background: var(--accent);
   transform: scaleY(0);
   transform-origin: top center;
+  /* Colour only. The scroll drives this element's transform every frame,
+     so transitioning transform here would make the fill lag the page. */
+  transition: background-color 0.4s ease;
 }
 
 .st-seg:hover .st-seg-fill {
-  background: var(--text);
+  background-color: var(--text);
 }
 
+/* The label floats over whatever the section happens to be showing, so it
+   carries its own ground: a blurred, tinted pill that keeps it readable
+   against pale project imagery as well as the dark sections. */
 .st-label {
   position: absolute;
-  right: 16px;
+  right: 14px;
   translate: 0 -50%;
   white-space: nowrap;
-  font-size: var(--text-overline);
+  padding: 4px 9px;
+  border-radius: 999px;
+  /* 14px floor: at tablet widths the vw term bottoms out, and 12px was
+     below the site's minimum readable size. */
+  font-size: clamp(14px, 0.95vw, 15px);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--text-secondary);
+  /* Blur alone, no tint: the label should sit on a softened version of
+     whatever is behind it rather than on a black chip. */
+  background-color: transparent;
+  /* No hand-written -webkit- twin here: pairing them made the build's
+     CSS minifier drop the property altogether. It prefixes on its own. */
+  backdrop-filter: blur(14px);
   opacity: 0;
   transition:
     opacity 0.4s ease,
@@ -1680,8 +1729,14 @@ button:hover > .ripple-text .ripple-arrow-diagonal {
 
 @media (prefers-reduced-motion: reduce) {
   .scroll-timeline,
-  .st-label {
+  .st-label,
+  .st-seg,
+  .st-seg-fill {
     transition: none;
+  }
+
+  .st-seg:hover {
+    transform: none;
   }
 }
 
@@ -1700,8 +1755,21 @@ button:hover > .ripple-text .ripple-arrow-diagonal {
 /* runs too late, since the navigation is decided on the first event.   */
 /* Scoped to the deck so the gesture behaves normally elsewhere.        */
 /* ------------------------------------------------------------------ */
-html.deck-open,
-html.deck-open body {
+/* Global, and deliberately not scoped to the deck routes.
+
+   This used to be toggled by a class the deck component added on mount,
+   which meant the guard did not exist between clicking a deck link and
+   React mounting the component — measured at zero wheel events reaching
+   the handler for the whole of that window on a cold route. A real
+   trackpad swipe in that gap went straight to Chrome as a back gesture,
+   which is why this kept coming back after "fixes" that only ever
+   tightened the JS.
+
+   Nothing on this site scrolls horizontally, so switching horizontal
+   overscroll off everywhere costs nothing and holds from first paint
+   with no JavaScript involved. */
+html,
+body {
   overscroll-behavior-x: none;
 }
 
@@ -1743,4 +1811,109 @@ html.deck-open body {
   .flip-back:focus-visible .flip-back-arrow {
     transform: none;
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Back-to-top cursor                                                   */
+/* The closing section is the end of the page, so over its ground the   */
+/* cursor becomes a way back up: same enlarged ring as the folder's     */
+/* "Open" state, with an upward arrow drawn above the label.            */
+/* ------------------------------------------------------------------ */
+.site-cursor-ring.cursor-top {
+  width: 74px;
+  height: 74px;
+  margin: -37px 0 0 -37px;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.site-cursor-ring.cursor-top .site-cursor-dot {
+  scale: 0;
+}
+
+.site-cursor-ring.cursor-top .site-cursor-label {
+  opacity: 1;
+  transform: translateY(7px);
+}
+
+/* The arrow itself, drawn with borders so it needs no extra element in
+   the markup. */
+.site-cursor-ring.cursor-top::after {
+  content: "";
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  margin-left: -4.5px;
+  border-top: 1.5px solid var(--accent);
+  border-left: 1.5px solid var(--accent);
+  transform: rotate(45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-cursor-ring.cursor-top .site-cursor-label {
+    transform: translateY(7px);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Native scrollbar, where the custom index takes over                  */
+/* The rail already reports position on the right-hand edge; two        */
+/* indicators in the same place read as a mistake. Content keeps its    */
+/* full width — no gutter is reserved, so nothing shifts.               */
+/* ------------------------------------------------------------------ */
+html.rail-on {
+  scrollbar-width: none;
+}
+
+html.rail-on::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Section label                                                        */
+/* Only Skills carries one now; About and Contact open straight on      */
+/* their own headline, which says the same thing louder.                */
+/* About / Skills / Contact used the site's overline setting — small,   */
+/* uppercase, letterspaced, muted — which is the exact styling of the   */
+/* nav links and every CTA. Readers had been taught that text like that */
+/* is something you click, so a plain section name read as a button.    */
+/* Sentence case, no tracking, and a short accent rule instead: an      */
+/* editorial marker rather than a control.                              */
+/* ------------------------------------------------------------------ */
+.section-label {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--text-overline);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-muted);
+}
+
+/* No rule: the label carries itself on the heading face alone. */
+
+/* Skills' label is set in the same face as its category headings
+   ("Design & Storytelling"), just small — so the section reads as one
+   typographic family rather than borrowing the nav's voice. */
+.section-label-heading {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-secondary);
+}
+
+/* ------------------------------------------------------------------ */
+/* Landscape pages in a mixed deck                                      */
+/* Cardo is the one document that mixes orientations. Dropped into a    */
+/* slot sized for a portrait page, a landscape page is constrained by   */
+/* width and renders at roughly half the height of the pages either     */
+/* side of it. Giving it two slots' width lets it match their height.   */
+/* Only applies to multi-up decks: the single-up decks are landscape    */
+/* throughout, so every page there is already the same shape.           */
+/* ------------------------------------------------------------------ */
+.embla[data-multi="true"] .embla__slide[data-landscape] {
+  flex-basis: calc(100% / var(--slides, 1) * 2);
 }

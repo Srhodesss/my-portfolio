@@ -38,6 +38,7 @@ const GROUPS: { title: string; blurb: string; tools: Tool[] }[] = [
       { name: "Figma", icon: "/logos/Figma.png" },
       { name: "InDesign", icon: "/logos/Adobe-InDesign.png" },
       { name: "Illustrator", icon: "/logos/Adobe-Illustrator.png" },
+      { name: "After Effects", icon: "/logos/Adobe-After-Effects.png" },
       { name: "Procreate", icon: "/logos/Procreate.png" },
       { name: "PowerPoint", icon: "/logos/PowerPoint.png" },
     ],
@@ -50,12 +51,13 @@ const GROUPS: { title: string; blurb: string; tools: Tool[] }[] = [
       { name: "SolidWorks", icon: "/logos/Solidworks.png" },
       { name: "Fusion 360", icon: "/logos/Fusion360.png" },
       { name: "Rhino", icon: "/logos/Rhino.png" },
-      { name: "Blender", icon: "/logos/Blender.png" },
       { name: "ANSYS", icon: "/logos/Ansys.png" },
+      { name: "Blender", icon: "/logos/Blender.png" },
+      { name: "KeyShot", icon: "/logos/Keyshot.png" },
     ],
   },
   {
-    title: "Data & Code",
+    title: "Data & Analytics",
     blurb:
       "Analysis and build: the focus algorithm and biometric processing behind Interax, the market and P&L modelling in Cardo's business report, and front-end work, including this site.",
     tools: [
@@ -82,39 +84,45 @@ export default function Skills() {
     gsap.registerPlugin(ScrollTrigger);
 
     const ctx = gsap.context(() => {
-      gsap.utils.toArray<HTMLElement>(".skill-row").forEach((row) => {
+      /* One scrubbed timeline for the whole section, not one per row.
+
+         Per-row triggers could never all peak together: the section is a
+         viewport tall, so when the last row reached the middle the first
+         two were already above it and the section itself had scrolled
+         past centre. Driving the timeline from the SECTION means the
+         reveal completes exactly as the section sits centred, with the
+         rows staggered inside that one span. */
+      const rows = gsap.utils.toArray<HTMLElement>(".skill-row");
+      const tl = gsap.timeline({
+        defaults: { ease: "power2.out" },
+        scrollTrigger: {
+          trigger: sectionRef.current,
+          start: "top 88%",
+          end: "center center",
+          scrub: true,
+        },
+      });
+
+      rows.forEach((row, i) => {
         const words = row.querySelectorAll(".skill-word");
         const line = row.querySelector(".skill-line-fill");
         const tools = row.querySelectorAll(".skill-tool");
-
-        // One scrubbed timeline per row: the reveal is driven by the row's
-        // passage from low in the viewport up towards the middle, so it
-        // plays out slowly and is fully readable as it happens.
-        const tl = gsap.timeline({
-          defaults: { ease: "power2.out" },
-          scrollTrigger: {
-            trigger: row,
-            // Begins as the row enters the lower viewport and is fully
-            // settled by the time its top reaches the middle — it should not
-            // still be resolving when it is near the top of the screen.
-            start: "top 85%",
-            end: "top 50%",
-            scrub: true,
-          },
-        });
+        // Each row opens a little after the one above it, and the last
+        // one still finishes inside the shared span.
+        const at = i * 14;
 
         tl.fromTo(
           words,
           { yPercent: 115, autoAlpha: 0 },
-          { yPercent: 0, autoAlpha: 1, duration: 30, stagger: 8 },
-          0,
+          { yPercent: 0, autoAlpha: 1, duration: 26, stagger: 6 },
+          at,
         );
-        tl.fromTo(line, { scaleX: 0 }, { scaleX: 1, duration: 46 }, 10);
+        tl.fromTo(line, { scaleX: 0 }, { scaleX: 1, duration: 34 }, at + 8);
         tl.fromTo(
           tools,
           { y: 20, autoAlpha: 0 },
-          { y: 0, autoAlpha: 1, duration: 26, stagger: 6 },
-          24,
+          { y: 0, autoAlpha: 1, duration: 24, stagger: 5 },
+          at + 18,
         );
       });
     }, sectionRef);
@@ -129,9 +137,9 @@ export default function Skills() {
     <section
       ref={sectionRef}
       id="skills"
-      className="scroll-mt-12 px-6 pb-32 pt-16 md:px-12 md:pb-40 md:pt-24 lg:px-20"
+      className="flex min-h-svh scroll-mt-12 flex-col justify-center px-6 py-24 md:px-12 md:py-28 lg:px-20"
     >
-      <p className="text-overline uppercase tracking-[0.05em] text-text-muted">
+      <p className="section-label section-label-heading">
         Skills
       </p>
 
@@ -193,7 +201,7 @@ export default function Skills() {
                 </div>
               </div>
             </div>
-            <ul className="flex flex-wrap items-start gap-x-7 gap-y-8 self-center">
+            <ul className="flex flex-wrap items-start gap-x-3 gap-y-8 self-center">
               {group.tools.map((tool, i) => (
                 <li key={tool.name} className="skill-tool">
                   {tool.icon ? (
@@ -218,7 +226,11 @@ export default function Skills() {
                           style={{
                             WebkitMaskImage: `url(${tool.icon})`,
                             maskImage: `url(${tool.icon})`,
-                            animationDelay: `${(i % 5) * 0.45}s`,
+                            // No modulo: `i % 5` wrapped the sixth mark
+                            // back to zero, so Tableau swept in step with
+                            // Python at the far end of the row instead of
+                            // following its neighbour.
+                            animationDelay: `${i * 0.42}s`,
                           }}
                         />
                       </span>

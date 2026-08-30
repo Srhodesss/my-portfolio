@@ -43,6 +43,20 @@ export default function RootLayout({
       className={`${primarySans.variable} ${displaySerif.variable} ${scriptureFace.variable} ${referenceFace.variable} antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        {/* The Hebrew watermark is on screen from the first frame of the
+            scripture intro, so its face has to be in flight before the
+            stylesheet is even parsed. Without this the browser only
+            discovered the @font-face when it reached the CSS, and the
+            watermark flashed in a fallback serif first. */}
+        <link
+          rel="preload"
+          href="/fonts/hebrew-background.ttf"
+          as="font"
+          type="font/ttf"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body className="bg-bg font-sans text-text">
         <script dangerouslySetInnerHTML={{ __html: introGate }} />
         <SmoothScroll>

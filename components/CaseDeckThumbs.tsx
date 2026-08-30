@@ -56,15 +56,30 @@ export default function CaseDeckThumbs({
   return (
     <div className="flex h-svh flex-col overflow-hidden bg-bg">
       <header className="flex shrink-0 items-baseline justify-between px-6 pt-6 md:px-12 lg:px-20">
+        {/* The slug is recorded on the way out. Returning to the index
+            used to rely on the URL hash, but the App Router writes the
+            hash a frame after the route commits and scrolls the new route
+            to the top in between, so the anchor was undone every time.
+            A handoff value is not subject to that ordering. */}
         <FlipLink
           href={`/work#${slug}`}
           label="Projects"
           underline
           backArrow
+          onClick={() => {
+            try {
+              sessionStorage.setItem("work-return", slug);
+            } catch {
+              /* private mode — the hash fallback still applies */
+            }
+          }}
           className="text-overline uppercase tracking-[0.05em] text-text-muted"
         />
-        <p className="text-overline uppercase tracking-[0.05em] text-text-muted">
-          {title} · {deck.label} · Thumbnail variant
+        <p
+          className="font-semibold tracking-tight text-text"
+          style={{ fontSize: "clamp(18px, 1.7vw, 26px)" }}
+        >
+          {title}
         </p>
       </header>
 

@@ -45,13 +45,15 @@ export default function CaseDeck({
       // final snap centres the second-to-last group, so the last pages can
       // never be reached and the bar never fills.
       containScroll: false,
+      // One page per drag: a gesture past the threshold snaps to the
+      // neighbouring page instead of coasting through several.
       skipSnaps: false,
-      duration: 22,
-      // Drag-free-snap: the drag itself is unconstrained and carries its
-      // momentum, and only once that momentum settles does the deck ease
-      // onto the nearest page. A flick can therefore cross several pages
-      // and still come to rest squarely on one.
-      dragFree: true,
+      duration: 26,
+      dragThreshold: 12,
+      // Not drag-free: the drag is constrained to the carousel's own
+      // snap points, so releasing past the threshold advances exactly
+      // one page and releasing short of it springs back.
+      dragFree: false,
     },
     [ClassNames({ snapped: "is-selected", inView: "is-in-view" })],
   );
@@ -74,6 +76,17 @@ export default function CaseDeck({
   useEffect(() => {
     embla?.reInit();
   }, [embla, perViewNow]);
+
+  /* The gesture guard is attached on mount and reads the carousel from
+     here. Binding it to the embla instance meant no guard existed until
+     Embla had initialised — on a client-side navigation the page appears
+     instantly while PDF.js is still starting, so a swipe in that window
+     reached the browser and navigated back. That is the window this
+     closes. */
+  const emblaRef2 = useRef<ReturnType<typeof useEmblaCarousel>[1]>(undefined);
+  useEffect(() => {
+    emblaRef2.current = embla;
+  }, [embla]);
 
   const [page, setPage] = useState(1);
   const [progress, setProgress] = useState(0);
@@ -146,40 +159,6 @@ export default function CaseDeck({
     };
   }, [embla]);
 
-  /* Drag-free-snap, second half: dragFree lets the momentum run, and
-     when Embla reports the motion settled we ease onto whichever page is
-     closest. The guard stops that corrective scroll from settling into
-     another correction. */
-  useEffect(() => {
-    if (!embla) return;
-    let correcting = false;
-    const onSettle = () => {
-      if (correcting) {
-        correcting = false;
-        return;
-      }
-      const progress = Math.min(1, Math.max(0, embla.scrollProgress()));
-      const snaps = embla.scrollSnapList();
-      if (snaps.length < 2) return;
-      let closest = 0;
-      let best = Infinity;
-      snaps.forEach((s, i) => {
-        const d = Math.abs(s - progress);
-        if (d < best) {
-          best = d;
-          closest = i;
-        }
-      });
-      if (closest === embla.selectedScrollSnap() && best < 0.001) return;
-      correcting = true;
-      embla.scrollTo(closest);
-    };
-    embla.on("settle", onSettle);
-    return () => {
-      embla.off("settle", onSettle);
-    };
-  }, [embla]);
-
   /* macOS turns a two-finger swipe right into browser back navigation
      whenever the page cannot scroll that way, and it claims the gesture
      from the first event, before this deck's own threshold has been met.
@@ -188,33 +167,26 @@ export default function CaseDeck({
      horizontal overscroll to act on. It is set on the root for as long as
      a deck is mounted and lifted again on the way out, so the gesture
      still works normally everywhere else on the site. */
-  useEffect(() => {
-    const root = document.documentElement;
-    root.classList.add("deck-open");
-    return () => root.classList.remove("deck-open");
-  }, []);
-
   /* Two-finger trackpad swipe.
 
-     A horizontal trackpad gesture arrives as a long stream of small
-     deltaX events, and on macOS the stream keeps running as momentum for
-     well over a second after the fingers lift. The first version latched
-     "one page per gesture" and cleared the latch on a quiet timer, which
-     the momentum tail kept resetting: the latch never released, so the
-     swipe worked exactly once and only in the direction that happened to
-     fire first.
+     Two earlier attempts at this failed for different reasons. The first
+     latched one page per gesture and cleared the latch on a quiet timer,
+     which macOS momentum kept resetting, so the swipe fired once and
+     never again. The second called preventDefault, but only on events
+     that reached the carousel element — so a swipe with the pointer over
+     the header, the arrows, or the page margins was never claimed, and
+     Chrome took it as a back-navigation.
 
-     This version has no latch. Distance is accumulated and a page turns
-     every STEP pixels, so the count follows the force of the swipe by
-     itself: a light flick travels one step and moves one page, a hard
-     flick carries its momentum across several. Reversing direction
-     mid-gesture zeroes the accumulator, so back and forth both work and
-     keep working. The axis is locked when the gesture starts, so a swipe
-     that begins horizontally is not stolen by a stray vertical delta. */
+     This binds the whole window in the capture phase for as long as a
+     deck is mounted, and claims every horizontal wheel event wherever it
+     lands on the page. Capture matters: it runs before anything else can
+     see the event, so nothing downstream can let it through.
+
+     Distance then accumulates and a page turns every STEP pixels, so a
+     light flick moves one page and a hard one carries several. Reversing
+     direction mid-gesture zeroes the accumulator, so both directions
+     work and keep working. */
   useEffect(() => {
-    if (!embla) return;
-    const node = embla.rootNode();
-
     const STEP = 55; // px of travel per page
     const QUIET_MS = 140; // silence that ends a gesture
     const MAX_PAGES = 14; // ceiling on one momentum tail
@@ -231,49 +203,78 @@ export default function CaseDeck({
     };
 
     const onWheel = (e: WheelEvent) => {
-      // Lock the axis on the first event of a gesture and keep it for the
-      // whole stream, momentum included.
-      if (axis === null) {
-        axis = Math.abs(e.deltaX) >= Math.abs(e.deltaY) ? "x" : "y";
-      }
-      const delta = axis === "x" ? e.deltaX : e.shiftKey ? e.deltaY : 0;
+      // Axis is decided per event where one clearly dominates, and the
+      // previous decision is kept only when the two are close — which is
+      // what a momentum tail looks like. A hard lock held for the whole
+      // gesture leaked in both directions: a scroll just after a swipe
+      // was claimed as horizontal, and a swipe just after a scroll was
+      // not claimed at all.
+      const dx = Math.abs(e.deltaX);
+      const dy = Math.abs(e.deltaY);
+      const setAxis = (next: "x" | "y") => {
+        if (axis === next) return;
+        axis = next;
+        travel = 0;
+        pages = 0;
+      };
+      if (dx > dy * 1.5) setAxis("x");
+      else if (dy > dx * 1.5) setAxis("y");
+      else if (axis === null) axis = dx >= dy ? "x" : "y";
 
-      // Claim every event of a horizontal gesture, including the ones
-      // below the page-turn threshold and the momentum tail. Claiming
-      // only the ones that turn a page left gaps the browser could read
-      // as an unhandled sideways swipe.
-      if (axis === "x" || e.shiftKey) e.preventDefault();
+      const horizontal = axis === "x" || e.shiftKey;
+
+      // Claim the whole horizontal gesture, anywhere on the page: the
+      // sub-threshold events, the momentum tail, all of it. A single
+      // unclaimed event is enough for Chrome to start navigating back.
+      if (horizontal && e.cancelable) e.preventDefault();
 
       window.clearTimeout(quiet);
       quiet = window.setTimeout(endGesture, QUIET_MS);
+
+      const delta = axis === "x" ? e.deltaX : e.shiftKey ? e.deltaY : 0;
       if (!delta) return;
 
-      // A reversal is a new intent, not a continuation.
       if (travel !== 0 && Math.sign(delta) !== Math.sign(travel)) {
         travel = 0;
         pages = 0;
       }
       travel += delta;
 
+      // Read the carousel at gesture time. Before it exists the gesture
+      // is still claimed above — it simply does not move any pages yet.
+      const api = emblaRef2.current;
+      if (!api) return;
+
       const want = Math.min(MAX_PAGES, Math.floor(Math.abs(travel) / STEP));
       const forward = travel > 0;
       while (pages < want) {
-        if (forward ? !embla.canScrollNext() : !embla.canScrollPrev()) {
+        if (forward ? !api.canScrollNext() : !api.canScrollPrev()) {
           pages = want;
           break;
         }
-        if (forward) embla.scrollNext();
-        else embla.scrollPrev();
+        if (forward) api.scrollNext();
+        else api.scrollPrev();
         pages += 1;
       }
     };
 
-    node.addEventListener("wheel", onWheel, { passive: false });
+    // Safari fires its own pinch/swipe gesture events alongside wheel;
+    // they are inert on Chrome and harmless to claim here.
+    const swallow = (e: Event) => {
+      if (e.cancelable) e.preventDefault();
+    };
+
+    const opts = { passive: false, capture: true } as const;
+    window.addEventListener("wheel", onWheel, opts);
+    window.addEventListener("gesturestart", swallow, opts);
+    window.addEventListener("gesturechange", swallow, opts);
     return () => {
-      node.removeEventListener("wheel", onWheel);
+      window.removeEventListener("wheel", onWheel, opts);
+      window.removeEventListener("gesturestart", swallow, opts);
+      window.removeEventListener("gesturechange", swallow, opts);
       window.clearTimeout(quiet);
     };
-  }, [embla]);
+  }, []);
 
   useEffect(() => {
     if (!embla) return;
@@ -306,18 +307,36 @@ export default function CaseDeck({
   return (
     <div className="flex h-svh flex-col overflow-hidden bg-bg">
       <header className="flex shrink-0 items-baseline justify-between px-6 pt-6 md:px-12 lg:px-20">
+        {/* The slug is recorded on the way out. Returning to the index
+            used to rely on the URL hash, but the App Router writes the
+            hash a frame after the route commits and scrolls the new route
+            to the top in between, so the anchor was undone every time.
+            A handoff value is not subject to that ordering. */}
         <FlipLink
           href={`/work#${slug}`}
           label="Projects"
           underline
           backArrow
+          onClick={() => {
+            try {
+              sessionStorage.setItem("work-return", slug);
+            } catch {
+              /* private mode — the hash fallback still applies */
+            }
+          }}
           className="text-overline uppercase tracking-[0.05em] text-text-muted"
         />
         {/* The deck IS the case study for these projects, so this is the
             page's document heading, not a caption. It stays styled as an
             overline. */}
-        <h1 className="text-overline uppercase tracking-[0.05em] text-text-muted">
-          {title} · {deck.label}
+        {/* Set like the project titles on the index, so a deck reads as
+            that project rather than as a document viewer. The document
+            type is already obvious from the pages themselves. */}
+        <h1
+          className="font-semibold tracking-tight text-text"
+          style={{ fontSize: "clamp(18px, 1.7vw, 26px)" }}
+        >
+          {title}
         </h1>
       </header>
 
@@ -371,7 +390,15 @@ export default function CaseDeck({
         >
           <div className="embla__container flex h-full touch-pan-y">
             {Array.from({ length: deck.pages }, (_, i) => (
-              <div className="embla__slide h-full" key={i}>
+              <div
+                className="embla__slide h-full"
+                key={i}
+                // Marked so a wide page can claim the extra width it needs
+                // to render at the same height as its portrait neighbours.
+                data-landscape={
+                  deck.landscape?.includes(i + 1) ? "true" : undefined
+                }
+              >
                 <PdfPage
                   url={deck.pdf}
                   page={i + 1}

@@ -36,21 +36,35 @@ const FOLDER_AT = 0.8;
    which would have shown the pills as part of Projects. */
 export const PILLS_END = 0.52;
 
+/* Where the pinned Projects sequence has finished fading to black. Its
+   blackout tween ends with the pinned timeline itself, so this is simply
+   the end of the pinned travel. */
+export const PROJECTS_END_VIEWPORTS = PIN_VIEWPORTS;
+
+/* SectionHandoff fades the outgoing section out over the first 46% of a
+   range running from (incoming.top - vh) to incoming.top. Skills is
+   therefore fully black 0.54vh before Contact's top, which is where the
+   index should call it Contact. */
+export const HANDOFF_OUT = 0.46;
+
 /* Skills rows finish as each row's top passes the middle of the viewport.
    The old 0.45 offset was chosen to guarantee that, but the section is
    only ~895px tall: landing 0.45vh in pushed the first two category rows
    clean above the viewport, so the reader arrived at the last row with no
    idea what they had missed. Measured across the range, everything is
-   fully revealed from 0.10vh. The section grew when it was scaled up, so
-   0.10 is now the setting that keeps the first heading clear of the top
-   edge while the last row still lands above the nav bar. */
-const SKILLS_OFFSET = 0.1;
+   fully revealed from 0.06vh. At 0.10 the section's own "Skills" overline
+   landed 1px from the top of the viewport, hard against the edge; 0.06
+   gives it 39px of air and still has every tool at full opacity. */
+const SKILLS_OFFSET = 0.06;
 
 /* Contact's reveal is driven by rp = (0.45vh - top) / 0.6vh, which at
    top = 0 is only 0.75 — and "together." does not start until 0.5 and the
-   CTA not until 0.72. rp reaches 1 at 0.15vh past the top; 0.22 leaves
-   margin. */
-const CONTACT_OFFSET = 0.22;
+   CTA not until 0.72. rp reaches 1 at 0.13vh past the top, so anything
+   from there up is fully revealed — but 0.22 left the section's own
+   "Contact" overline 6px from the top of the viewport, hard against the
+   edge in the same way Skills was. 0.14 keeps the reveal complete and
+   gives the overline 84px of air. */
+const CONTACT_OFFSET = 0.14;
 
 /**
  * Where a section lands, as an absolute page position. Plain blocks land
@@ -110,4 +124,30 @@ export function crossFadeTo(target: number) {
       requestAnimationFrame(() => el.classList.remove("is-on"));
     });
   }, COVER_MS);
+}
+
+/**
+ * Scroll all the way back to the top, travelling the page rather than
+ * cutting to it. The cross-fade exists so a nav jump does not drag the
+ * reader through every pinned sequence in between; going home from the
+ * foot of the page is the opposite case, where seeing the page rewind is
+ * the point.
+ *
+ * Duration scales with the distance actually being covered, so it reads
+ * at a steady pace instead of racing on a long page and crawling on a
+ * short one, and it is capped so it can never become a chore.
+ */
+export function smoothToTop() {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    window.scrollTo(0, 0);
+    return;
+  }
+  const lenis = getLenis();
+  const distance = window.scrollY;
+  const duration = Math.min(3.2, Math.max(1.4, distance / 3200));
+  if (lenis) {
+    lenis.scrollTo(0, { duration, easing: (x: number) => 1 - Math.pow(1 - x, 3) });
+  } else {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 }

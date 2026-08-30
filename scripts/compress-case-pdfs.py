@@ -30,6 +30,7 @@ SOURCES = {
     "aid-sirho-frames": "raw-assets/aid/project-work/Rhodes_Sinai_Portfolio.pdf",
     "cuttleswish": "raw-assets/cuttleswish/project-work/IDE_Group4_Portfolio.pdf",
     "brushed-lips": "raw-assets/brushed-lips/project-work/SDE.pdf",
+    "verdure": "raw-assets/verdure/project-work/A Level Project - Verdure.pdf",
 }
 
 OUT_DIR = "public/case-pdf"

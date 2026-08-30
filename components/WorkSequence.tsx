@@ -86,7 +86,13 @@ const DEFINITIONS: Record<string, string> = {
 };
 
 /* How long a flipped pill stays open before it turns back. */
-const FLIP_MS = 3200;
+/* The flip runs as three stages: widen, turn, hold — then the same in
+   reverse. Each has its own duration so the sequence can be composed
+   without the parts overlapping. Keep FLIP_WIDEN_MS and FLIP_TURN_MS in
+   step with the .pill transition durations in globals.css. */
+const FLIP_WIDEN_MS = 380;
+const FLIP_TURN_MS = 620;
+const FLIP_HOLD_MS = 2000;
 const GLOW_RADIUS = 260;
 
 /* ---- folder data --------------------------------------------------- */
@@ -250,7 +256,6 @@ export default function WorkSequence() {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const root = rootRef.current!;
     const cleanups: (() => void)[] = [];
-    let timer = 0;
     let openPill: HTMLElement | null = null;
 
     // The marquee tweens are registered on mount; pausing them holds the
@@ -259,54 +264,87 @@ export default function WorkSequence() {
       marqueeRef.current.forEach((tw) => (paused ? tw.pause() : tw.play()));
     };
 
-    const close = () => {
-      if (!openPill) return;
-      openPill.classList.remove("pill-flipped");
-      // Back to hugging the label.
-      openPill.style.width = "";
-      openPill = null;
-      setPaused(false);
+    /* The open/close sequence runs in stages rather than all at once:
+       the pill widens to fit its definition, THEN turns; on the way back
+       it turns first and only then shrinks. Doing both together made the
+       pill appear to grow sideways mid-rotation, which read as one
+       muddled movement instead of two clear ones. */
+    const timers: number[] = [];
+    const after = (ms: number, fn: () => void) => {
+      timers.push(window.setTimeout(fn, ms));
+    };
+    const clearStages = () => {
+      timers.splice(0).forEach((id) => window.clearTimeout(id));
     };
 
     /* The definition is out of flow so it cannot stretch the resting
        pill, which means the pill has to be told how wide to become when
        it turns. Measuring the back face directly keeps the two in step
        whatever the definition says. */
-    const widenFor = (pill: HTMLElement) => {
+    const targetWidth = (pill: HTMLElement) => {
       const back = pill.querySelector<HTMLElement>(".pill-face-back");
-      if (!back) return;
+      if (!back) return null;
       const cs = getComputedStyle(pill);
       const pad =
         parseFloat(cs.paddingLeft) +
         parseFloat(cs.paddingRight) +
         parseFloat(cs.borderLeftWidth) +
         parseFloat(cs.borderRightWidth);
-      pill.style.width = `${Math.ceil(back.scrollWidth + pad)}px`;
+      return Math.ceil(back.scrollWidth + pad);
+    };
+
+    /* Reverse of the opening sequence: turn back, then shrink. The
+       resting width is pinned in pixels first, because a transition from
+       a pixel width to `auto` does not animate — it would snap. */
+    const close = () => {
+      const pill = openPill;
+      if (!pill) return;
+      clearStages();
+      openPill = null;
+      pill.classList.remove("pill-flipped");
+      after(FLIP_TURN_MS, () => {
+        const rest = pill.dataset.restWidth;
+        if (rest) pill.style.width = `${rest}px`;
+        after(FLIP_WIDEN_MS + 40, () => {
+          pill.style.width = "";
+          delete pill.dataset.restWidth;
+        });
+      });
+      setPaused(false);
+    };
+
+    const open = (pill: HTMLElement) => {
+      openPill = pill;
+      setPaused(true);
+      // Pin the resting width so the return leg has something to
+      // animate back to.
+      pill.dataset.restWidth = String(
+        Math.ceil(pill.getBoundingClientRect().width),
+      );
+      const wide = targetWidth(pill);
+      if (wide) pill.style.width = `${wide}px`;
+      // Widen first, turn once the width has arrived.
+      after(FLIP_WIDEN_MS, () => {
+        pill.classList.add("pill-flipped");
+        after(FLIP_TURN_MS + FLIP_HOLD_MS, close);
+      });
     };
 
     root.querySelectorAll<HTMLElement>(".pill").forEach((pill) => {
       const onClick = () => {
-        window.clearTimeout(timer);
         if (openPill === pill) {
           close();
           return;
         }
-        if (openPill) {
-          openPill.classList.remove("pill-flipped");
-          openPill.style.width = "";
-        }
-        openPill = pill;
-        pill.classList.add("pill-flipped");
-        widenFor(pill);
-        setPaused(true);
-        timer = window.setTimeout(close, FLIP_MS);
+        if (openPill) close();
+        open(pill);
       };
       pill.addEventListener("click", onClick);
       cleanups.push(() => pill.removeEventListener("click", onClick));
     });
 
     return () => {
-      window.clearTimeout(timer);
+      clearStages();
       cleanups.forEach((fn) => fn());
       setPaused(false);
     };

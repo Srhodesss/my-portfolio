@@ -194,7 +194,7 @@ export default function About() {
       className="flex min-h-svh scroll-mt-12 flex-col justify-center overflow-x-clip py-20"
     >
       <div className="about-inner">
-        <p className="px-6 text-overline uppercase tracking-[0.05em] text-text-muted md:px-12 lg:px-20">
+        <p className="section-label section-label-heading px-6 md:px-12 lg:px-20">
           About
         </p>
 

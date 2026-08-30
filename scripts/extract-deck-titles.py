@@ -8,6 +8,7 @@ plausible heading fall back to null (the UI shows the page number).
 
 Usage: python3 scripts/extract-deck-titles.py
 """
+import json
 import re
 import subprocess
 from pathlib import Path
@@ -21,6 +22,7 @@ SOURCES = {
     "aid-sirho-frames": "raw-assets/aid/project-work/Rhodes_Sinai_Portfolio.pdf",
     "cuttleswish": "raw-assets/cuttleswish/project-work/IDE_Group4_Portfolio.pdf",
     "brushed-lips": "raw-assets/brushed-lips/project-work/SDE.pdf",
+    "verdure": "raw-assets/verdure/project-work/A Level Project - Verdure.pdf",
 }
 
 # Lines that are page furniture rather than section titles.
@@ -51,7 +53,80 @@ BYLINES = {
 # whose runs pdftotext returns out of order, so the first title-like line
 # is only a fragment. These are read off the page and pinned here, so a
 # re-run of this script does not undo them.
+# Hand-authored labels, supplied by Sinai, expressed as page RANGES.
+#
+# These are applied ON TOP of the detected index, not instead of it: an
+# earlier version replaced the whole index with just these pages, which
+# left every unlisted page unlabelled. Detection still names every page;
+# these ranges then overwrite the pages they cover.
+MANUAL_RANGES: dict[str, list[tuple[int, int, str]]] = {
+    "interax": [
+        (1, 1, "Interax"),
+        (5, 5, "Teaching for ADHD"),
+        (9, 11, "Technical Feasibility"),
+        (19, 19, "Economics"),
+    ],
+    "aid-sirho-frames": [
+        (1, 1, "Sirho Frames"),
+        (2, 2, "Deconstructed Diagram"),
+        (3, 3, "Wheel Variations"),
+        (4, 4, "Context"),
+        (5, 5, "Initial Ideation"),
+        (6, 6, "Prototyping"),
+        (7, 7, "CAD Development"),
+        (8, 8, "CMF"),
+        (9, 9, "Final Design"),
+        (10, 10, "References"),
+    ],
+    "cardo": [
+        (1, 1, "Cardo"),
+        (2, 3, "Contents"),
+    ],
+    "cuttleswish": [
+        (1, 1, "Cuttlesw!sh"),
+        (18, 19, "Final Renders"),
+        (21, 22, "Orthographic Diagrams"),
+        (23, 23, "References"),
+    ],
+    "brushed-lips": [
+        (1, 1, "Brushed Lips"),
+        (2, 2, "Problem"),
+        (6, 6, "Innovation, Feasibility and Environmental Impact"),
+        (7, 8, "Infrastructure System Design"),
+        (11, 12, "Value System Design"),
+        (13, 14, "Principle System Design"),
+    ],
+    "verdure": [
+        (1, 1, "Verdure"),
+        (2, 2, "Mindmapping"),
+        (3, 4, "Client Profile"),
+        (5, 6, "Product Moodboards"),
+        (10, 10, "Ergonomics and Anthropometrics"),
+        (11, 12, "Site Study"),
+        (15, 16, "Product Requirements"),
+        (18, 20, "Initial Sketches"),
+        (21, 22, "Lofi Prototyping"),
+        (23, 23, "Final Design Sketch"),
+        (24, 27, "Product Development"),
+        (28, 30, "Final Design"),
+        (31, 33, "Orthographic Diagrams"),
+        (35, 41, "Production Plan and Photo Diary"),
+        (42, 42, "Hero"),
+        (43, 43, "Final Product User Research"),
+        (44, 47, "Testing against Specification"),
+    ],
+}
+
+
 OVERRIDES: dict[str, dict[int, str]] = {
+    # Verdure's specification pages open on a table header ("Title"), and
+    # its materials pages run over, so the heuristic reads a column name
+    # or a sub-item instead of the section.
+    "verdure": {
+        8: "Materials Research",
+        16: "Product Requirements",
+        45: "Sustainability Requirements",
+    },
     "brushed-lips": {
         2: "PROBLEM OUTLINE",
         3: "FUTURE SCENARIO",
@@ -60,6 +135,24 @@ OVERRIDES: dict[str, dict[int, str]] = {
         14: "EXISTING PRINCIPLE SYSTEM",
     },
 }
+
+
+def landscape_pages(pdf: Path) -> list[int]:
+    """1-based page numbers whose media box is wider than it is tall.
+
+    A landscape page dropped into a slot sized for portrait pages is
+    constrained by width, so it renders at roughly half the height of its
+    neighbours. The viewer widens these slots instead.
+    """
+    out = subprocess.run(
+        ["pdfinfo", "-f", "1", "-l", "9999", str(pdf)],
+        capture_output=True, text=True,
+    ).stdout
+    wide: list[int] = []
+    for m in re.finditer(r"^Page\s+(\d+)\s+size:\s+([\d.]+) x ([\d.]+)", out, re.M):
+        if float(m.group(2)) > float(m.group(3)):
+            wide.append(int(m.group(1)))
+    return wide
 
 
 def page_count(pdf: Path) -> int:
@@ -145,6 +238,8 @@ def main() -> None:
         "  titles: (string | null)[];",
         "  /** Set only on the page where a new numbered section begins. */",
         "  sections: (string | null)[];",
+        "  /** 1-based pages that are wider than they are tall. */",
+        "  landscape: number[];",
         "};",
         "",
         "export const CASE_DECKS: Record<string, CaseDeck> = {",
@@ -162,6 +257,14 @@ def main() -> None:
         for page_no, fixed in OVERRIDES.get(slug, {}).items():
             if 1 <= page_no <= n:
                 titles[page_no - 1] = fixed
+        # Hand-authored labels go over the top of the detected ones, page
+        # by page. Everything they do not cover keeps what detection
+        # found, so no page is left unlabelled.
+        manual_pages = 0
+        for lo, hi, name in MANUAL_RANGES.get(slug, []):
+            for page_no in range(lo, min(hi, n) + 1):
+                titles[page_no - 1] = name
+                manual_pages += 1
         found = sum(1 for t in titles if t)
 
         # Section starts: accept a heading only when its number advances on
@@ -189,6 +292,19 @@ def main() -> None:
                     sections[i] = title
                 previous = title or previous
             n_sections = sum(1 for s in sections if s)
+
+        # Manual labels land last, once detection (including the
+        # unnumbered fallback) has produced its full index. Applying them
+        # any earlier inflated the section count and made that fallback
+        # skip itself, collapsing Interax from 20 sections to 3.
+        for lo, hi, name in MANUAL_RANGES.get(slug, []):
+            if 1 <= lo <= n:
+                sections[lo - 1] = name
+            # One manual label spans its whole range rather than being
+            # cut in half by a detected start inside it.
+            for page_no in range(lo + 1, min(hi, n) + 1):
+                sections[page_no - 1] = None
+        n_sections = sum(1 for s in sections if s)
         rendered = ", ".join("null" if t is None else '"%s"' % t.replace('"', "'") for t in titles)
         rendered_sections = ", ".join(
             "null" if s is None else '"%s"' % s.replace('"', "'") for s in sections
@@ -196,9 +312,13 @@ def main() -> None:
         lines.append(
             f'  "{slug}": {{ label: "{label}", pages: {n}, '
             f'pdf: "/case-pdf/{slug}.pdf", dir: "/case-pdf/{slug}", '
-            f'titles: [{rendered}], sections: [{rendered_sections}] }},'
+            f'titles: [{rendered}], sections: [{rendered_sections}], '
+            f"landscape: {json.dumps(landscape_pages(pdf))} }},"
         )
-        print(f"{slug}: {found}/{n} pages titled, {n_sections} sections")
+        print(
+            f"{slug}: {found}/{n} pages titled, {n_sections} sections"
+            + (f", {manual_pages} manual" if manual_pages else "")
+        )
     lines.append("};")
     TS.write_text("\n".join(lines) + "\n")
     print(f"wrote {TS.relative_to(ROOT)}")

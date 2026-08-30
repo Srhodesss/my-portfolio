@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
+import { smoothToTop } from "@/lib/section-nav";
 
 /**
  * Site-wide custom cursor: a thin accent ring with a white dot at its
@@ -114,6 +115,26 @@ export default function CustomCursor() {
       startHint();
     }
 
+    /* The label is built from per-character spans so it can carry the
+       same travelling wave the CTAs use on hover: each character takes a
+       delay stepped by index, so the lift runs through the word rather
+       than the whole label bobbing as one. Rebuilt only when the text
+       actually changes, so the animation is not restarted every frame. */
+    const CH_STEP_MS = 60;
+    let labelText = "";
+    const setLabel = (text: string) => {
+      if (text === labelText) return;
+      labelText = text;
+      label.textContent = "";
+      Array.from(text).forEach((ch, i) => {
+        const span = document.createElement("span");
+        span.className = "cursor-ch";
+        span.textContent = ch;
+        span.style.animationDelay = `${i * CH_STEP_MS}ms`;
+        label.appendChild(span);
+      });
+    };
+
     let stateRaf = 0;
     const syncState = () => {
       stateRaf = requestAnimationFrame(syncState);
@@ -124,21 +145,31 @@ export default function CustomCursor() {
       );
       const folder = target?.closest(".work-folder");
 
-      if (hinting && !folder) {
+      // Anything genuinely clickable outranks the hint. Hovering a nav
+      // link while the hint was up kept showing "Scroll" over a control,
+      // which read as though the link did nothing. Falling through here
+      // gives the link its own cursor, and moving back onto the hero
+      // brings the hint straight back because `hinting` is untouched.
+      if (hinting && !folder && !interactive) {
         ring.classList.add("cursor-hint");
         ring.classList.remove("cursor-hot", "cursor-open");
         dot.classList.remove("cursor-hot");
-        if (label.textContent !== "Scroll") label.textContent = "Scroll";
+        setLabel("Scroll");
         return;
       }
       ring.classList.remove("cursor-hint");
       const yieldsToViewBubble = target?.closest(".work-panel a");
 
+      // The closing section is the end of the page, so the only thing
+      // left to do there is go back up. Anything genuinely clickable in
+      // it (the nav) keeps its own cursor.
+      const closing = !interactive && !!target?.closest("[data-closing]");
+
       ring.classList.toggle("cursor-hot", !!interactive && !folder);
       dot.classList.toggle("cursor-hot", !!interactive && !folder);
       ring.classList.toggle("cursor-open", !!folder);
-      const want = folder ? "Open" : "";
-      if (label.textContent !== want) label.textContent = want;
+      ring.classList.toggle("cursor-top", closing);
+      setLabel(folder ? "Open" : closing ? "Top" : "");
       ring.classList.toggle("cursor-suppressed", !!yieldsToViewBubble);
     };
     stateRaf = requestAnimationFrame(syncState);
@@ -147,11 +178,23 @@ export default function CustomCursor() {
       gsap.to(ring, { autoAlpha: 0, duration: 0.25 });
     };
 
+    // Click the closing section's ground to travel back to the top. This
+    // one scrolls the whole way rather than cross-fading: the reader is
+    // at the end of the page and watching it rewind is the point.
+    const onClick = (e: MouseEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (!el?.closest("[data-closing]")) return;
+      if (el.closest("a, button, [role='button']")) return;
+      smoothToTop();
+    };
+    document.addEventListener("click", onClick);
+
     window.addEventListener("pointermove", onMove, { passive: true });
     document.documentElement.addEventListener("pointerleave", onLeave);
     return () => {
       document.documentElement.classList.remove("cursor-on");
       window.removeEventListener("pointermove", onMove);
+      document.removeEventListener("click", onClick);
       document.documentElement.removeEventListener("pointerleave", onLeave);
       window.removeEventListener("scroll", onScrolled);
       introWatch?.disconnect();

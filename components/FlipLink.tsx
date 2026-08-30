@@ -71,7 +71,16 @@ export default function FlipLink({
     );
   }
   return (
-    <Link href={href} className={classes} onClick={onClick}>
+    // scroll={false} for hash links: Next's router scrolls the new route
+    // to the top by default, which landed after the browser had already
+    // jumped to the anchor and undid it. ScrollReset owns positioning for
+    // these, so the router must keep its hands off.
+    <Link
+      href={href}
+      scroll={!href.includes("#")}
+      className={classes}
+      onClick={onClick}
+    >
       <span className="sr-only">{label}</span>
       {inner}
     </Link>

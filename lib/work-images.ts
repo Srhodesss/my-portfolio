@@ -16,6 +16,8 @@ export type WorkImage = {
   centred?: boolean;
   /** Sit on Cardo's own warm ground rather than the default white. */
   beige?: boolean;
+  /** White frame around the figure, capped at 20px. */
+  bordered?: boolean;
 };
 
 export const WORK_MEDIA: Record<
@@ -26,7 +28,7 @@ export const WORK_MEDIA: Record<
     hero: { src: "/work/interax/hero.jpg", alpha: false, w: 1800, h: 1260 },
     collage: [
       { src: "/work/interax/c1.png", alpha: true, w: 1800, h: 1012 , light: true },
-      { src: "/work/interax/c2.png", alpha: true, w: 1490, h: 555, light: true },
+      { src: "/work/interax/c2.png", alpha: true, w: 1490, h: 555, light: true, bordered: true },
       { src: "/work/interax/c3.png", alpha: true, w: 1739, h: 1012 , light: true },
       { src: "/work/interax/c4.png", alpha: false, w: 1800, h: 1225, light: true, full: true },
     ],

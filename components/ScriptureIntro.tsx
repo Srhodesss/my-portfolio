@@ -143,10 +143,12 @@ export default function ScriptureIntro() {
           </p>
         </blockquote>
         <figcaption
-          className="scripture-ref soft-fade mt-8 font-medium text-text-muted"
+          className="soft-fade mt-8 font-semibold text-text-muted"
           style={{
+            // Same face as the cursor labels: the display sans, semibold,
+            // tight — rather than the reference serif it used to carry.
             fontSize: "clamp(12px, 1vw, 14px)",
-            letterSpacing: "0.18em",
+            letterSpacing: "-0.01em",
             animationDelay: `${ATTRIBUTION_DELAY_S.toFixed(2)}s`,
           }}
         >
