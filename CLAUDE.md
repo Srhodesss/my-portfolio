@@ -141,7 +141,7 @@ Capabilities: Design Engineering, Product Design, Industrial Design, UX/UI, User
 Omit for now. Do not invent entries. Only add later if Sinai confirms real, verified roles.
 
 ### Footer
-Quiet and minimal. Text: "Designed with purpose." Links: LinkedIn, Email (hello@sinairhodes.com), CV, Portfolio PDF. Contact number is +44 7432 491292.
+Quiet and minimal. Text: "Designed with purpose." Links: LinkedIn, Email (hello@sinairhodes.com), CV, Portfolio PDF. Contact number held privately; ask Sinai if a phone contact is needed.
 
 ### Navigation
 Minimal: Work, About, Capabilities, Contact. Appears after the intro and hero load. Understated.
