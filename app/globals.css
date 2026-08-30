@@ -1932,3 +1932,42 @@ html.rail-on::-webkit-scrollbar {
   background-color: color-mix(in srgb, var(--bg) 55%, transparent);
   backdrop-filter: blur(10px);
 }
+
+/* ------------------------------------------------------------------ */
+/* Intro CTA hairline                                                   */
+/* Drawn on the label itself so its ends can be pinned to the type      */
+/* rather than to the button box. At rest it spans the words only,      */
+/* stopping short by the arrow's own width plus its margin; on hover it */
+/* runs out to the arrow's trailing edge. Because both ends are         */
+/* anchored, it grows into the arrow rather than sliding sideways.      */
+/* ------------------------------------------------------------------ */
+.intro-rule {
+  position: relative;
+  /* Arrow glyph plus the 0.5em margin RippleText gives it. */
+  --arrow-space: 1.85em;
+}
+
+.intro-rule::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: var(--arrow-space);
+  bottom: -0.85em;
+  height: 1px;
+  background: color-mix(in srgb, var(--text-muted) 35%, transparent);
+  transition:
+    right 0.5s ease-out,
+    background-color 0.5s ease-out;
+}
+
+.intro-cta:hover .intro-rule::after,
+.intro-cta:focus-visible .intro-rule::after {
+  right: 0;
+  background: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-rule::after {
+    transition: none;
+  }
+}

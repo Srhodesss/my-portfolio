@@ -142,8 +142,13 @@ export default function ScriptureIntro() {
             </span>
           </p>
         </blockquote>
+        {/* The figcaption stays a block so it owns its own line; the
+            blurred pill is the span inside it, sized to the text. Styling
+            the figcaption itself as inline-block put it in the inline flow
+            beside the button below, and the two sat side by side rather
+            than stacked. */}
         <figcaption
-          className="attribution soft-fade mt-8 font-semibold text-text-muted"
+          className="soft-fade mt-8 text-center font-semibold text-text-muted"
           style={{
             // Same face as the cursor labels: the display sans, semibold,
             // tight — rather than the reference serif it used to carry.
@@ -152,7 +157,7 @@ export default function ScriptureIntro() {
             animationDelay: `${ATTRIBUTION_DELAY_S.toFixed(2)}s`,
           }}
         >
-          Exodus 31:3–4
+          <span className="attribution">Exodus 31:3–4</span>
         </figcaption>
 
         {/* Waits for the reader rather than timing out. Treated as a
@@ -162,20 +167,19 @@ export default function ScriptureIntro() {
         <button
           type="button"
           onClick={proceed}
-          className={`intro-cta group mt-16 inline-flex flex-col items-center gap-3 transition-opacity duration-1000 ease-out ${
+          className={`intro-cta group mx-auto mt-16 flex w-fit flex-col items-center transition-opacity duration-1000 ease-out ${
             ready
               ? "pointer-events-auto opacity-100"
               : "pointer-events-none opacity-0"
           }`}
         >
-          <span className="flex items-baseline text-overline uppercase tracking-[0.22em] text-text-muted">
+          {/* The hairline is drawn on this wrapper rather than as a
+              sibling below, so it can be measured against the label
+              itself: at rest it stops short of the arrow and sits under
+              the words alone; on hover it runs out to the arrow's edge. */}
+          <span className="intro-rule flex items-baseline text-overline uppercase tracking-[0.22em] text-text-muted">
             <RippleText arrow="right">Enter Site</RippleText>
           </span>
-          {/* Hairline that draws out from the centre on hover. */}
-          <span
-            aria-hidden
-            className="block h-px w-16 origin-center scale-x-100 bg-text-muted/35 transition-all duration-500 ease-out group-hover:w-24 group-hover:bg-accent"
-          />
           <span className="sr-only">Proceed to the main site</span>
         </button>
 
