@@ -303,7 +303,7 @@ export default function WorkIndex() {
     };
   }, []);
 
-  /* The pinned Home link sits over the big "Projects." title on load.
+  /* The pinned Home link sits over the big "Projects" title on load.
      Fade it out while the two overlap, and back in once past it. */
   useEffect(() => {
     const home = homeRef.current;
@@ -362,7 +362,7 @@ export default function WorkIndex() {
 
       <RevealText
         as="h1"
-        text="Projects."
+        text="Projects"
         stagger={0.016}
         className="work-title mt-16 block font-semibold leading-none tracking-[-0.03em]"
         style={{ fontSize: "clamp(56px, 11vw, 170px)" }}
@@ -427,7 +427,7 @@ export default function WorkIndex() {
                 key={project.slug}
                 id={project.slug}
                 // No scroll-margin: the header is sticky at top 0, and any gap here
-                // leaves the descender of "Projects." peeking in above it.
+                // leaves the descender of "Projects" peeking in above it.
                 className="scroll-mt-0"
               >
                 {/* Title + year */}

@@ -75,7 +75,7 @@ export const WORK_META: Record<string, WorkMeta> = {
       "Biometrics",
     ],
     tools: [TOOL.figma, TOOL.blender, TOOL.python],
-    role: "One of five. I led the user research and the interface: the app's screens and their key states, and the data visualisation that turns raw biometric traces into something readable mid-session.",
+    role: "One of five. I led the user research that outlined the design requirements, and designed the app prototype and the systems overview: the key screens and states, and the data visualisation that turns raw biometric traces into something readable mid-session.",
     links: [
       { label: "View prototype", href: FIGMA_PROTO, external: true },
       { label: "Read the case study", href: "/work/interax" },
@@ -96,7 +96,7 @@ export const WORK_META: Record<string, WorkMeta> = {
       "Financial Modelling",
     ],
     tools: [TOOL.figma, TOOL.excel],
-    role: "Product design across hardware and software: the card's form and CAD, and the budgeting, diary and savings views. I also built the market analysis and the P&L model behind the business case.",
+    role: "Product design across hardware and software: the card's form and CAD, and the app's budgeting, diary and savings views. I ran the user research that shaped the design, mapped the sales channels and marketing approach, and built the market analysis and a three year month on month P&L model behind the business case.",
     links: [{ label: "View case study", href: "/work/cardo/deck" }],
   },
   "aid-sirho-frames": {
@@ -113,7 +113,7 @@ export const WORK_META: Record<string, WorkMeta> = {
       "Prototyping",
     ],
     tools: [TOOL.fusion, TOOL.grasshopper, TOOL.blender],
-    role: "Solo, from structural concept to finished CMF. I generated the Voronoi lattice that takes weight out of the body without losing stiffness, specified 6061-T6 aluminium water jet cut and CNC machined, and set the allen key at 30 degrees inside the frame on neodymium magnets.",
+    role: "Solo, from structural concept to finished CMF. I generated the Voronoi lattice to reduce weight without losing stiffness, and specified the frame material and manufacturing process.",
     links: [{ label: "View case study", href: "/work/aid-sirho-frames/deck" }],
   },
   cuttleswish: {
@@ -131,7 +131,7 @@ export const WORK_META: Record<string, WorkMeta> = {
       "Packaging Design",
     ],
     tools: [TOOL.fusion, TOOL.blender, TOOL.illustrator],
-    role: "Chief Operations Officer on a team of four, owning user experience and manufacture. I ran the packaging end to end, researched safety, compliance and labelling, wrote the user guide, soldered the circuit, and did the 3D printing, painting and assembly of the final unit.",
+    role: "Chief Operations Officer on a team of four, owning user experience and manufacture. I ran the packaging end to end, researched safety, compliance and labelling, designed the user guide, soldered the circuit, and did the 3D printing, assembly and finishing of the final unit.",
     links: [{ label: "View case study", href: "/work/cuttleswish/deck" }],
   },
   "brushed-lips": {
@@ -149,7 +149,7 @@ export const WORK_META: Record<string, WorkMeta> = {
       "User Research",
     ],
     tools: [TOOL.fusion, TOOL.blender, TOOL.illustrator],
-    role: "One of four. I owned the actors and data layers of the circular system: mapping every stakeholder from MetalPack through FedEx to Novelis and what each would have to change, building the user profiles the design is argued against, auditing the claims the product could defend, and specifying the ID number etched into each applicator for traceability.",
+    role: "One of four. I designed and rendered the CAD and packaging, then owned the actors and data layers of the circular system: mapping stakeholders and what each would need to change, building the user profiles the design is argued against, and auditing the claims the product could defend.",
     links: [{ label: "View case study", href: "/work/brushed-lips/deck" }],
   },
   verdure: {
@@ -167,7 +167,7 @@ export const WORK_META: Record<string, WorkMeta> = {
       "Manufacturing",
     ],
     tools: [TOOL.fusion, TOOL.powerpoint],
-    role: "Run end to end and made by hand. I interviewed the client and ran a task analysis to turn what he wanted into testable specification points, chose oak over iroko on sustainability grounds, CNC routed the shelf profiles from my own CAD template, built a jig for repeatable 45 degree mitres, and finished in Osmo Oil.",
+    role: "Run end to end and made by hand. I interviewed the client and ran a task analysis to turn what he wanted into testable specification points, then took that through to a finished piece of furniture.",
     links: [{ label: "View case study", href: "/work/verdure/deck" }],
   },
 };

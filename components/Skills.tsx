@@ -33,7 +33,7 @@ const GROUPS: { title: string; blurb: string; tools: Tool[] }[] = [
   {
     title: "Design & Storytelling",
     blurb:
-      "Interface and communication design. Interax's app screens and Cardo's budgeting, diary and savings views, and then the reports and portfolios themselves, which were laid out and art directed rather than just written.",
+      "I use design to tell a story. Whether it's a portfolio, a product, or an interface, the message needs to land clearly. Good design tells that story. Clear storytelling is the hard part.",
     tools: [
       { name: "Figma", icon: "/logos/Figma.png" },
       { name: "InDesign", icon: "/logos/Adobe-InDesign.png" },
@@ -46,7 +46,7 @@ const GROUPS: { title: string; blurb: string; tools: Tool[] }[] = [
   {
     title: "Engineering & CAD",
     blurb:
-      "Modelling and technical development, taken from CAD through prototyping to detail design: the Cuttlesw!sh assembly and its packaging, Cardo's card form, and the Voronoi structure inside the Sirho Frames.",
+      "Modelling and technical development, taken from CAD through to prototyping. Iteration through prototyping takes patience and precision, and that attention to detail is something I prioritise in every build.",
     tools: [
       { name: "SolidWorks", icon: "/logos/Solidworks.png" },
       { name: "Fusion 360", icon: "/logos/Fusion360.png" },
@@ -59,7 +59,7 @@ const GROUPS: { title: string; blurb: string; tools: Tool[] }[] = [
   {
     title: "Data & Analytics",
     blurb:
-      "Analysis and build: the focus algorithm and biometric processing behind Interax, the market and P&L modelling in Cardo's business report, and front-end work, including this site.",
+      "Performance is measured through data, and that demands rigour, not guesswork. I use it to test assumptions, catch what isn't working, and make decisions I can actually justify.",
     tools: [
       { name: "Python", icon: "/logos/Python.png" },
       { name: "MATLAB", icon: "/logos/Matlab.png" },
@@ -98,7 +98,18 @@ export default function Skills() {
         scrollTrigger: {
           trigger: sectionRef.current,
           start: "top 88%",
-          end: "center center",
+          // Peaks as the categories centre — but only when the section
+          // actually fits the viewport. On a short window it is taller
+          // than the screen, so "centred" is never reached and the
+          // section was still unrevealed when the nav landed on it.
+          // There, finish as its top clears the same band the title
+          // lands in.
+          end: () => {
+            const el = sectionRef.current;
+            const tall = !!el && el.offsetHeight > window.innerHeight;
+            return tall ? "top 15%" : "center center";
+          },
+          invalidateOnRefresh: true,
           scrub: true,
         },
       });
@@ -195,7 +206,12 @@ export default function Skills() {
                 }`}
               >
                 <div className="overflow-hidden">
-                  <p className="mt-5 max-w-[52ch] text-body-m leading-relaxed text-text-secondary">
+                  {/* text-pretty: the browser rebalances the closing lines so a
+                      final short word is not left on its own. At 1728px the
+                      column landed such that "part." and "justify." each hung
+                      alone; this fixes that at every width rather than the
+                      one measured. */}
+                  <p className="mt-5 max-w-[52ch] text-pretty text-body-m leading-relaxed text-text-secondary">
                     {group.blurb}
                   </p>
                 </div>

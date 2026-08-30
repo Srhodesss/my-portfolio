@@ -75,7 +75,11 @@ export default function Contact() {
       // Starts only once the black veil has peaked (BlackTransition tops
       // out as this section's top crosses mid-viewport), so the heading
       // resolves out of black rather than over the outgoing section.
-      const rp = clamp((vh * 0.45 - r.top) / (vh * 0.6));
+      // 0.52 rather than 0.45: the reveal now completes a little earlier
+      // in the section's travel, which is what lets the nav land with the
+      // "Contact" title at the same clearance as every other section
+      // instead of being held back waiting for the CTA to arrive.
+      const rp = clamp((vh * 0.52 - r.top) / (vh * 0.6));
 
       const wStep = words.length > 1 ? 0.22 / words.length : 0;
       words.forEach((el, i) => {
@@ -180,7 +184,7 @@ export default function Contact() {
 
         <div className="contact-cta">
           <a
-            href="mailto:sinai.r@icloud.com"
+            href="mailto:hello@sinairhodes.com"
             className="group has-rule relative mt-14 inline-flex items-baseline text-body-l font-medium md:text-heading"
           >
             <RippleText arrow="right">Contact me</RippleText>

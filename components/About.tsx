@@ -27,10 +27,10 @@ const QUOTE_WORDS = "Engineering products that move people";
 const QUOTE_CHARS = "forward.";
 
 const PARA_1 =
-  "I’m a creative problem solver, rooted in faith, and I make things that excite and help the people around me. My work sits between hardware, software and human behaviour. Research, prototyping, CAD, UX and data all feed the same thing, which is building products that move people forward.";
+  "My name is Sinai. I\u2019m a final year Design Engineering student at Imperial, working at the intersection of creativity and technical expertise, where good ideas meet practical solutions. With a keen eye for detail and a relentless drive for perfection, I strive to push the boundaries of design and engineering.";
 
 const PARA_2 =
-  "My faith shapes how I approach craft. It means treating the work as something entrusted to me, and building things that actually serve the people who use them.";
+  "I believe design has the power to make an impact, not just in how something looks, but in how well it works and who it serves.";
 
 export default function About() {
   const sectionRef = useRef<HTMLElement>(null);

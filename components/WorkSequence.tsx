@@ -301,33 +301,74 @@ export default function WorkSequence() {
       if (!pill) return;
       clearStages();
       openPill = null;
-      pill.classList.remove("pill-flipped");
-      after(FLIP_TURN_MS, () => {
-        const rest = pill.dataset.restWidth;
+      const rest = pill.dataset.restWidth;
+      const clear = () => {
+        pill.style.width = "";
+        delete pill.dataset.restWidth;
+      };
+
+      if (pill.dataset.shrinks === "true") {
+        // Mirror of the opening order: give the width back first, so the
+        // pill is its full size again before it turns.
         if (rest) pill.style.width = `${rest}px`;
-        after(FLIP_WIDEN_MS + 40, () => {
-          pill.style.width = "";
-          delete pill.dataset.restWidth;
+        after(FLIP_WIDEN_MS, () => {
+          pill.classList.remove("pill-flipped");
+          after(FLIP_TURN_MS + 40, clear);
         });
-      });
+      } else {
+        pill.classList.remove("pill-flipped");
+        after(FLIP_TURN_MS, () => {
+          if (rest) pill.style.width = `${rest}px`;
+          after(FLIP_WIDEN_MS + 40, clear);
+        });
+      }
       setPaused(false);
     };
 
     const open = (pill: HTMLElement) => {
       openPill = pill;
       setPaused(true);
-      // Pin the resting width so the return leg has something to
-      // animate back to.
-      pill.dataset.restWidth = String(
-        Math.ceil(pill.getBoundingClientRect().width),
-      );
+      /* Pin the resting width in pixels FIRST, flush it, and only then
+         set the target.
+
+         The expand used to snap while the return eased, despite both
+         using the same curve: opening went from `width: auto` to a pixel
+         value, and a transition cannot interpolate from `auto` — the
+         browser jumps straight to the end. Closing was px to px, which
+         is why only that half looked right. Giving the open leg a
+         concrete start value makes the two symmetrical. */
+      const rest = Math.ceil(pill.getBoundingClientRect().width);
+      pill.dataset.restWidth = String(rest);
+      pill.style.width = `${rest}px`;
+      // Force the pinned width to be committed before changing it, so
+      // the two values land in separate style recalculations.
+      void pill.offsetWidth;
+
+      /* Order depends on which way the pill is about to resize.
+
+         Most definitions are longer than their label, so the pill widens
+         to make room and then turns. A few are SHORTER — "computational
+         designer" is the clear case, a 339px label against a 276px
+         definition — and for those the same order read backwards: the
+         pill contracted before there was anything to explain why. Those
+         turn first, then close the gap. */
       const wide = targetWidth(pill);
-      if (wide) pill.style.width = `${wide}px`;
-      // Widen first, turn once the width has arrived.
-      after(FLIP_WIDEN_MS, () => {
+      const shrinks = wide !== null && wide < rest;
+      pill.dataset.shrinks = shrinks ? "true" : "false";
+
+      if (shrinks) {
         pill.classList.add("pill-flipped");
-        after(FLIP_TURN_MS + FLIP_HOLD_MS, close);
-      });
+        after(FLIP_TURN_MS, () => {
+          if (wide) pill.style.width = `${wide}px`;
+          after(FLIP_WIDEN_MS + FLIP_HOLD_MS, close);
+        });
+      } else {
+        if (wide) pill.style.width = `${wide}px`;
+        after(FLIP_WIDEN_MS, () => {
+          pill.classList.add("pill-flipped");
+          after(FLIP_TURN_MS + FLIP_HOLD_MS, close);
+        });
+      }
     };
 
     root.querySelectorAll<HTMLElement>(".pill").forEach((pill) => {

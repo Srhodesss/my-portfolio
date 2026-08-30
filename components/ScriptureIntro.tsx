@@ -143,7 +143,7 @@ export default function ScriptureIntro() {
           </p>
         </blockquote>
         <figcaption
-          className="soft-fade mt-8 font-semibold text-text-muted"
+          className="attribution soft-fade mt-8 font-semibold text-text-muted"
           style={{
             // Same face as the cursor labels: the display sans, semibold,
             // tight — rather than the reference serif it used to carry.
@@ -169,7 +169,7 @@ export default function ScriptureIntro() {
           }`}
         >
           <span className="flex items-baseline text-overline uppercase tracking-[0.22em] text-text-muted">
-            <RippleText arrow="right">Enter</RippleText>
+            <RippleText arrow="right">Enter Site</RippleText>
           </span>
           {/* Hairline that draws out from the centre on hover. */}
           <span

@@ -1917,3 +1917,18 @@ html.rail-on::-webkit-scrollbar {
 .embla[data-multi="true"] .embla__slide[data-landscape] {
   flex-basis: calc(100% / var(--slides, 1) * 2);
 }
+
+/* ------------------------------------------------------------------ */
+/* Scripture attribution                                                */
+/* Sits over the drifting Hebrew watermark, so it carries its own       */
+/* ground: a blurred, lightly tinted pill that keeps the reference      */
+/* readable as glyphs pass behind it. Sized to the text with            */
+/* inline-block rather than stretching the full column.                 */
+/* ------------------------------------------------------------------ */
+.attribution {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background-color: color-mix(in srgb, var(--bg) 55%, transparent);
+  backdrop-filter: blur(10px);
+}

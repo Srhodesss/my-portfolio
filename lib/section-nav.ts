@@ -47,24 +47,26 @@ export const PROJECTS_END_VIEWPORTS = PIN_VIEWPORTS;
    index should call it Contact. */
 export const HANDOFF_OUT = 0.46;
 
-/* Skills rows finish as each row's top passes the middle of the viewport.
-   The old 0.45 offset was chosen to guarantee that, but the section is
-   only ~895px tall: landing 0.45vh in pushed the first two category rows
-   clean above the viewport, so the reader arrived at the last row with no
-   idea what they had missed. Measured across the range, everything is
-   fully revealed from 0.06vh. At 0.10 the section's own "Skills" overline
-   landed 1px from the top of the viewport, hard against the edge; 0.06
-   gives it 39px of air and still has every tool at full opacity. */
-const SKILLS_OFFSET = 0.06;
+/* Every section's small title lands the same distance below the top of
+   the viewport. This used to be three hand-tuned offsets that drifted
+   apart as the sections changed shape — measured at 150px for About,
+   117px for Skills and 82px for Contact — because each was tuned against
+   that section's own padding rather than against the thing the reader
+   actually sees. The target is now computed from the label's position,
+   so the clearance holds whatever the padding does. */
+export const LABEL_CLEARANCE = 112;
 
-/* Contact's reveal is driven by rp = (0.45vh - top) / 0.6vh, which at
-   top = 0 is only 0.75 — and "together." does not start until 0.5 and the
-   CTA not until 0.72. rp reaches 1 at 0.13vh past the top, so anything
-   from there up is fully revealed — but 0.22 left the section's own
-   "Contact" overline 6px from the top of the viewport, hard against the
-   edge in the same way Skills was. 0.14 keeps the reveal complete and
-   gives the overline 84px of air. */
-const CONTACT_OFFSET = 0.14;
+/* Fallback travel for a section with no label of its own. A section that
+   has one is positioned by its label, full stop: an earlier version took
+   the greater of the two, which on a short viewport pushed Skills 48px
+   PAST its clearance and put its title at 64px while the others sat at
+   112. The clearance is the thing the reader sees, so it decides. */
+const MIN_TRAVEL: Record<string, number> = {
+  skills: 0.06,
+  contact: 0.06,
+};
+
+
 
 /**
  * Where a section lands, as an absolute page position. Plain blocks land
@@ -78,9 +80,15 @@ export function sectionTarget(id: string): number | null {
   if (id === "work") {
     return start + PIN_VIEWPORTS * window.innerHeight * FOLDER_AT;
   }
-  if (id === "skills") return start + window.innerHeight * SKILLS_OFFSET;
-  if (id === "contact") return start + window.innerHeight * CONTACT_OFFSET;
-  return start;
+
+  // Put the section's own small title exactly LABEL_CLEARANCE below the
+  // top of the viewport. Sections without a label fall back to a fixed
+  // share of the viewport.
+  const label = el.querySelector<HTMLElement>(".section-label");
+  if (!label) return start + window.innerHeight * (MIN_TRAVEL[id] ?? 0);
+
+  const labelTop = label.getBoundingClientRect().top + window.scrollY;
+  return labelTop - LABEL_CLEARANCE;
 }
 
 let veilEl: HTMLElement | null = null;
