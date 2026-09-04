@@ -16,7 +16,7 @@ OUT_TS="lib/work-images.ts"
 DIRS=(interax cardo aid cuttleswish brushed-lips verdure)
 slug_for() {
   case "$1" in
-    aid) echo "aid-sirho-frames" ;;
+    aid) echo "sirho-frames" ;;
     *) echo "$1" ;;
   esac
 }

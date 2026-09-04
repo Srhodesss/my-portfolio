@@ -345,6 +345,15 @@ export default function WorkIndex() {
 
   return (
     <div ref={rootRef} className="px-6 pb-32 pt-10 md:px-12 lg:px-20">
+      {/* On a phone the project headers stick to the very top, directly
+          under the Home link — the two sat on top of each other as each
+          title scrolled up. The headers now stop below it (see .wi-head in
+          globals.css) and this strip fills the band they used to occupy,
+          so content scrolls behind an opaque bar rather than through the
+          Home link. Desktop is untouched: there the headers begin well to
+          the right of it and never collide. */}
+      <div className="wi-topbar" aria-hidden />
+
       {/* Home stays put: pinned top-left, above the index, at any scroll
           position on this page. */}
       <div
@@ -428,7 +437,7 @@ export default function WorkIndex() {
                 id={project.slug}
                 // No scroll-margin: the header is sticky at top 0, and any gap here
                 // leaves the descender of "Projects" peeking in above it.
-                className="scroll-mt-0"
+                className="wi-section scroll-mt-0"
               >
                 {/* Title + year */}
                 {/* Sticky while its own images scroll past; the next project's

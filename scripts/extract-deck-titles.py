@@ -19,7 +19,7 @@ TS = ROOT / "lib" / "case-decks.ts"
 SOURCES = {
     "interax": "raw-assets/interax/web-ready-assets/project-work/interax-portfolio.pdf",
     "cardo": "raw-assets/cardo/project-work/Cardo - Business Report.pdf",
-    "aid-sirho-frames": "raw-assets/aid/project-work/Rhodes_Sinai_Portfolio.pdf",
+    "sirho-frames": "raw-assets/aid/project-work/Rhodes_Sinai_Portfolio.pdf",
     "cuttleswish": "raw-assets/cuttleswish/project-work/IDE_Group4_Portfolio.pdf",
     "brushed-lips": "raw-assets/brushed-lips/project-work/SDE.pdf",
     "verdure": "raw-assets/verdure/project-work/A Level Project - Verdure.pdf",
@@ -66,7 +66,7 @@ MANUAL_RANGES: dict[str, list[tuple[int, int, str]]] = {
         (9, 11, "Technical Feasibility"),
         (19, 19, "Economics"),
     ],
-    "aid-sirho-frames": [
+    "sirho-frames": [
         (1, 1, "Sirho Frames"),
         (2, 2, "Deconstructed Diagram"),
         (3, 3, "Wheel Variations"),

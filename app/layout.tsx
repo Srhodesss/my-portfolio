@@ -13,7 +13,7 @@ import SmoothScroll from "@/components/SmoothScroll";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Sinai Rhodes — Design Engineer | Product Specialist",
+  title: "Sinai Rhodes | Design Engineer",
   description:
     "Portfolio of Sinai Rhodes, Design Engineering student at Imperial College London. Engineering products that move people forward.",
 };

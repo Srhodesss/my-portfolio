@@ -17,7 +17,7 @@ QUALITY=80
 # slug|source pdf|human label
 DECKS=(
   "cardo|raw-assets/cardo/project-work/Cardo - Business Report.pdf|Business Report"
-  "aid-sirho-frames|raw-assets/aid/project-work/Rhodes_Sinai_Portfolio.pdf|Portfolio"
+  "sirho-frames|raw-assets/aid/project-work/Rhodes_Sinai_Portfolio.pdf|Portfolio"
   "cuttleswish|raw-assets/cuttleswish/project-work/IDE_Group4_Portfolio.pdf|Group Portfolio"
   "brushed-lips|raw-assets/brushed-lips/project-work/SDE.pdf|SDE Report"
 )

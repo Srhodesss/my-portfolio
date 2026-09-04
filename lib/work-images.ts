@@ -39,12 +39,12 @@ export const WORK_MEDIA: Record<
       { src: "/work/cardo/c2.png", alpha: true, w: 1749, h: 487, light: true, padded: true, beige: true },
     ],
   },
-  "aid-sirho-frames": {
-    hero: { src: "/work/aid-sirho-frames/hero.jpg", alpha: false, w: 1800, h: 1086 },
+  "sirho-frames": {
+    hero: { src: "/work/sirho-frames/hero.jpg", alpha: false, w: 1800, h: 1086 },
     collage: [
-      { src: "/work/aid-sirho-frames/c2.jpg", alpha: false, w: 1800, h: 1121 },
-      { src: "/work/aid-sirho-frames/c3.png", alpha: false, w: 1800, h: 1038 },
-      { src: "/work/aid-sirho-frames/c4.png", alpha: false, w: 1800, h: 1273 },
+      { src: "/work/sirho-frames/c2.jpg", alpha: false, w: 1800, h: 1121 },
+      { src: "/work/sirho-frames/c3.png", alpha: false, w: 1800, h: 1038 },
+      { src: "/work/sirho-frames/c4.png", alpha: false, w: 1800, h: 1273 },
     ],
   },
   "cuttleswish": {

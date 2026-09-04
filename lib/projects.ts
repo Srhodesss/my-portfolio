@@ -99,11 +99,11 @@ export const projects: Project[] = [
     ],
   },
   {
-    slug: "aid-sirho-frames",
+    slug: "sirho-frames",
     title: "Sirho Frames",
     impact: "A rollerblading frame project. Full case study in progress.",
     tags: ["Industrial Design", "Design Engineering", "CAD", "Prototyping"],
-    cover: { src: "/work/aid-sirho-frames/hero.jpg", alt: "Sirho Frames render" },
+    cover: { src: "/work/sirho-frames/hero.jpg", alt: "Sirho Frames render" },
     sections: [
       {
         heading: "Challenge",

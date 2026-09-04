@@ -99,7 +99,7 @@ export const WORK_META: Record<string, WorkMeta> = {
     role: "Product design across hardware and software: the card's form and CAD, and the app's budgeting, diary and savings views. I ran the user research that shaped the design, mapped the sales channels and marketing approach, and built the market analysis and a three year month on month P&L model behind the business case.",
     links: [{ label: "View case study", href: "/work/cardo/deck" }],
   },
-  "aid-sirho-frames": {
+  "sirho-frames": {
     navLabel: "Sirho Frames",
     year: "Mar 2025",
     module: "Imperial · Advanced Industrial Design",
@@ -114,7 +114,7 @@ export const WORK_META: Record<string, WorkMeta> = {
     ],
     tools: [TOOL.fusion, TOOL.grasshopper, TOOL.blender],
     role: "Solo, from structural concept to finished CMF. I generated the Voronoi lattice to reduce weight without losing stiffness, and specified the frame material and manufacturing process.",
-    links: [{ label: "View case study", href: "/work/aid-sirho-frames/deck" }],
+    links: [{ label: "View case study", href: "/work/sirho-frames/deck" }],
   },
   cuttleswish: {
     navLabel: "Cuttlesw!sh",

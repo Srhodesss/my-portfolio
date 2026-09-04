@@ -526,6 +526,27 @@ html.cursor-on * {
 /* `--glow` (0..1) is written per-pill by the cursor-proximity loop; the
    edge brightens toward the same warm yellow-white as the Hebrew
    watermark glow. */
+/* One number drives the pills: their size, the space between them across a
+   row, and the space between rows. Previously only the size scaled — the
+   gaps were fixed px, so the ratio of pill to gap drifted 17% across
+   common laptop widths, and the vertical pitch drifted 26% because it was
+   distributed by height while the pill scaled with width. */
+.pills-stage {
+  --pill-size: clamp(20px, 2.6vw, 40px);
+}
+
+.pill-row {
+  gap: calc(var(--pill-size) * 0.62);
+}
+
+.pill-stack {
+  gap: calc(var(--pill-size) * 1.09);
+  /* Fixed clearance above the first row and below the last. The row count
+     is what grows on a taller screen, so these two never drift. */
+  margin-top: calc(var(--pill-size) * 1);
+  margin-bottom: calc(var(--pill-size) * 1.6);
+}
+
 .pill {
   --glow: 0;
   display: inline-flex;
@@ -542,7 +563,7 @@ html.cursor-on * {
   border-radius: 9999px;
   font-family: var(--font-display), Georgia, serif;
   font-style: italic;
-  font-size: clamp(20px, 2.6vw, 40px);
+  font-size: var(--pill-size);
   color: var(--text-secondary);
   cursor: pointer;
   touch-action: none;
@@ -1950,18 +1971,24 @@ html.rail-on::-webkit-scrollbar {
 .intro-rule::after {
   content: "";
   position: absolute;
-  left: 0;
-  right: var(--arrow-space);
+  /* Rest width is the label's own width — the full box less the arrow —
+     but inset equally from both sides so it sits centred under the label
+     AND its arrow, rather than centred under the label alone. Hover then
+     opens it out symmetrically to the full width. */
+  left: calc(var(--arrow-space) / 2);
+  right: calc(var(--arrow-space) / 2);
   bottom: -0.85em;
   height: 1px;
   background: color-mix(in srgb, var(--text-muted) 35%, transparent);
   transition:
+    left 0.5s ease-out,
     right 0.5s ease-out,
     background-color 0.5s ease-out;
 }
 
 .intro-cta:hover .intro-rule::after,
 .intro-cta:focus-visible .intro-rule::after {
+  left: 0;
   right: 0;
   background: var(--accent);
 }
@@ -1969,5 +1996,91 @@ html.rail-on::-webkit-scrollbar {
 @media (prefers-reduced-motion: reduce) {
   .intro-rule::after {
     transition: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Mobile: scripture verse flows as one paragraph                       */
+/* The verse is authored as fixed lines so the desktop composition can  */
+/* break exactly where intended. Below md those lines each wrap on      */
+/* their own, so a line a shade too wide spilled a single word onto a   */
+/* row by itself — "intelligence," at 375/390, "designs." at 428.       */
+/* Here the lines run inline instead, making one paragraph that fills   */
+/* each row, with a space restored between them (the authored markup    */
+/* only puts spaces *within* a line). Desktop is untouched: every rule  */
+/* below is inside the query.                                           */
+/* ------------------------------------------------------------------ */
+@media (max-width: 767px) {
+  .scripture-verse [aria-hidden] > span {
+    display: inline;
+  }
+
+  .scripture-verse [aria-hidden] > span::after {
+    content: " ";
+  }
+
+  /* Overrides the element's inline font-size, which clamps to its 24px
+     floor long before these widths. */
+  .scripture-verse {
+    font-size: clamp(19px, 5.1vw, 24px) !important;
+    line-height: 1.5 !important;
+    text-wrap: pretty;
+  }
+
+  .scripture-intro figure {
+    padding-inline: 1.25rem;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Mobile: About heading holds one line                                 */
+/* "Engineering products that move people forward." needs 20.1px at     */
+/* 375, 21.0px at 390 and 23.4px at 428 to fit the column on one line.  */
+/* 5.2vw clears all three with margin and still reads as a heading      */
+/* against 17px body copy. The clamp ceiling means it never exceeds the */
+/* size it already had. Overrides the element's inline font-size, whose */
+/* 26px floor is what forced the second line.                           */
+/* ------------------------------------------------------------------ */
+@media (max-width: 767px) {
+  .about-quote {
+    font-size: clamp(17px, 5.2vw, 26px) !important;
+    white-space: nowrap;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Projects index — the Home link and the sticky project headers        */
+/* On a phone the Home link (fixed, top 24, 24-93 across) and each       */
+/* project header (sticky, top 0, starting at x 24) occupy the same      */
+/* corner and overlap as every title scrolls up. On desktop the headers  */
+/* start at x 380, well clear of it, so all of this is mobile only.      */
+/* ------------------------------------------------------------------ */
+.wi-topbar {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .wi-topbar {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: var(--bg);
+    /* above the page content and the sticky headers (z-30), below the
+       Home link itself (z-50) */
+    z-index: 40;
+    pointer-events: none;
+  }
+
+  /* Stick below the Home link, not under it. */
+  .wi-head {
+    top: 60px;
+  }
+
+  /* Jumping to a project must land its title below that band too. */
+  .wi-section {
+    scroll-margin-top: 60px;
   }
 }

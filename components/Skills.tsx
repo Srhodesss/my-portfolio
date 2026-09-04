@@ -217,19 +217,19 @@ export default function Skills() {
                 </div>
               </div>
             </div>
-            <ul className="flex flex-wrap items-start gap-x-3 gap-y-8 self-center">
+            <ul className="flex flex-wrap items-start gap-x-3 gap-y-5 self-center md:gap-y-8">
               {group.tools.map((tool, i) => (
                 <li key={tool.name} className="skill-tool">
                   {tool.icon ? (
-                    <span className="flex w-28 flex-col items-center gap-3">
+                    <span className="flex w-24 flex-col items-center gap-2 md:w-28 md:gap-3">
                       {/* Fixed box: the artwork is already normalised, so
                           every mark occupies the same square. */}
-                      <span className="skill-logo relative block h-24 w-24">
+                      <span className="skill-logo relative block h-16 w-16 md:h-24 md:w-24">
                         <Image
                           src={tool.icon}
                           alt={tool.name}
                           fill
-                          sizes="96px"
+                          sizes="(max-width: 767px) 64px, 96px"
                           className="object-contain"
                         />
                         {/* Shimmer sweep: the same moving-gradient mechanic
