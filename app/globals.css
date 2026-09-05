@@ -791,6 +791,16 @@ html:not(.intro-active) .scripture-intro:not([data-mounted]) {
   /* Descender room so the mask never clips g/y/p. */
   padding-bottom: 0.14em;
   margin-bottom: -0.14em;
+  /* Round terminal letters (s, e, o, c...) are drawn with a slight
+     optical overshoot past their own advance width — normally
+     imperceptible, but negative tracking (several headings use
+     tracking-[-0.03em]) pulls the box in just enough that overflow:
+     hidden was clipping the last letter's curve. Measured on "Projects"
+     at 166px: the glyph's true right edge sat 1.87px past this box.
+     A small right-hand allowance, offset the same way as the descender
+     padding above, fixes it without shifting anything after the word. */
+  padding-right: 0.04em;
+  margin-right: -0.04em;
 }
 
 .rt-inner {

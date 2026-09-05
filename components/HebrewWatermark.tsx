@@ -43,10 +43,21 @@ export default function HebrewWatermark() {
   return (
     <div
       dir="rtl"
-      className="flex h-full flex-col justify-between py-2"
+      className="flex h-full flex-col justify-between py-[0.25em]"
       style={{
-        color: "color-mix(in srgb, var(--scripture) 6%, transparent)",
-        fontSize: "clamp(19px, 2.4vw, 34px)",
+        // Strength is a variable so a host section can light the same
+        // markup harder without forking it — the closing section reveals
+        // it under the cursor. Unset everywhere else, so 6% stands.
+        color:
+          "color-mix(in srgb, var(--scripture) var(--wm-strength, 6%), transparent)",
+        /* Rows are distributed down the full height, so the gap between
+           them is set by the container's HEIGHT — tie the size to the same
+           axis and the ratio between the two holds at any viewport. Sized
+           by width instead, it hit its ceiling on large screens while the
+           gaps kept growing, and the texture drifted 24% looser. The vw
+           term only takes over on narrow screens, where a purely
+           height-derived size would be far too large. */
+        fontSize: "clamp(19px, min(3.55vh, 7.5vw), 56px)",
       }}
     >
       {Array.from({ length: ROWS }, (_, i) => {
