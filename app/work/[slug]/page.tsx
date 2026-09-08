@@ -33,7 +33,7 @@ export async function generateMetadata({
   const project = getProject((await params).slug);
   if (!project) return {};
   return {
-    title: `${project.title} — Sinai Rhodes`,
+    title: `${project.title} | Sinai Rhodes`,
     description: project.impact,
   };
 }

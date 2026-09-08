@@ -13,7 +13,7 @@ export function generateStaticParams(): Params[] {
 }
 
 export const metadata: Metadata = {
-  title: "Deck — thumbnail variant — Sinai Rhodes",
+  title: "Deck | thumbnail variant | Sinai Rhodes",
 };
 
 export default async function DeckThumbsPage({

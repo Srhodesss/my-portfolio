@@ -27,7 +27,7 @@ export async function generateMetadata({
   const deck = CASE_DECKS[slug];
   if (!project || !deck) return {};
   return {
-    title: `${project.title} — ${deck.label} — Sinai Rhodes`,
+    title: `${project.title} | ${deck.label} | Sinai Rhodes`,
     description: `${deck.label} for ${project.title}, page by page.`,
   };
 }
