@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { splitText } from "animejs";
 
 /**
@@ -26,6 +26,31 @@ import { splitText } from "animejs";
 const QUOTE_WORDS = "Engineering products that move people";
 const QUOTE_CHARS = "forward.";
 
+// Single source of truth for the quote's un-shrunk "ideal" size, read by
+// both the JSX fallback below and the fit calculation — computing the
+// ceiling straight from this formula (not from the DOM) matters: once the
+// fit effect has shrunk the font for a narrow viewport, the applied
+// font-size becomes a literal px value, and re-deriving "ideal" from that
+// on a later, wider resize would ratchet it down forever instead of
+// growing back to the true clamp() ceiling.
+//
+// Sized as a fixed multiple of the paragraph's own clamp() (--text-body-m:
+// 17px / 1.4vw / 22px) rather than three independently-chosen numbers.
+// The old 26/2.5/40 floated between 1.53x the paragraph at the floor and
+// 1.82x at the ceiling — the pairing visibly loosened and tightened as
+// the viewport changed size, which read as the two sizes not quite
+// belonging together. A constant 1.7x holds the same relationship at
+// every width instead.
+const BODY_M_MIN_PX = 17;
+const BODY_M_VW = 1.4;
+const BODY_M_MAX_PX = 22;
+const QUOTE_TO_BODY_RATIO = 1.7;
+const QUOTE_MIN_PX = BODY_M_MIN_PX * QUOTE_TO_BODY_RATIO;
+const QUOTE_MAX_PX = BODY_M_MAX_PX * QUOTE_TO_BODY_RATIO;
+const QUOTE_VW = BODY_M_VW * QUOTE_TO_BODY_RATIO;
+const quoteIdealPx = (viewportWidth: number) =>
+  Math.min(QUOTE_MAX_PX, Math.max(QUOTE_MIN_PX, (viewportWidth * QUOTE_VW) / 100));
+
 const PARA_1 =
   "My name is Sinai. I\u2019m a final year Design Engineering student at Imperial, working at the intersection of creativity and technical expertise, where good ideas meet practical solutions. With a keen eye for detail and a relentless drive for perfection, I strive to push the boundaries of design and engineering.";
 
@@ -34,6 +59,66 @@ const PARA_2 =
 
 export default function About() {
   const sectionRef = useRef<HTMLElement>(null);
+  const [quoteSize, setQuoteSize] = useState<number | null>(null);
+
+  /**
+   * Force the quote onto a single line at every viewport width by shrinking
+   * its font size to fit, measured rather than guessed. The old approach
+   * was a hand-tuned mobile-only clamp() good for exactly the three phone
+   * widths it was measured against (375/390/428) — it never covered
+   * 768–1023px (no mobile override, desktop clamp floors at 26px) or,
+   * worse, roughly 1024–1400px: the moment the `lg:` two-column grid
+   * lands, the quote's column width roughly halves while the clamp's own
+   * value barely moves, so real laptop widths (1024, 1280, 1366) wrapped
+   * to two lines. Canvas-measuring the actual string against the actual
+   * container holds at any width, including ones nobody thought to check.
+   */
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) return;
+    const quoteEl = section.querySelector<HTMLElement>(".about-quote");
+    if (!quoteEl) return;
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d")!;
+    const fullText = `${QUOTE_WORDS} ${QUOTE_CHARS}`;
+
+    const fit = () => {
+      const cs = getComputedStyle(quoteEl);
+      // The ceiling comes from the formula, not from cs.fontSize — that
+      // would read back whatever this same effect last applied, ratcheting
+      // the size down on every resize instead of recovering it on a wider
+      // one. clientWidth still has to come from the DOM (only the browser
+      // knows the container's real box after the grid breakpoint lands).
+      const ideal = quoteIdealPx(window.innerWidth);
+      const containerWidth = quoteEl.clientWidth;
+      if (!ideal || !containerWidth) return;
+
+      ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${ideal}px ${cs.fontFamily}`;
+      try {
+        ctx.letterSpacing = cs.letterSpacing;
+      } catch {
+        /* Safari < 17 has no letterSpacing on canvas context; this
+           heading's -0.02em tracking doesn't move the measurement enough
+           to matter without it. */
+      }
+      const natural = ctx.measureText(fullText).width;
+      // A small safety margin so sub-pixel rounding between the canvas
+      // measurement and actual layout is never the difference between one
+      // line and two.
+      setQuoteSize(
+        natural > containerWidth
+          ? (ideal * containerWidth * 0.985) / natural
+          : ideal,
+      );
+    };
+
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(quoteEl);
+    document.fonts?.ready?.then(fit).catch(() => {});
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -204,8 +289,13 @@ export default function About() {
         <div className="mt-8 grid items-center gap-12 px-6 md:px-12 lg:grid-cols-[1fr_1fr] lg:gap-16 lg:px-20">
           <div>
             <p
-              className="about-quote font-display italic leading-[1.08] tracking-[-0.02em]"
-              style={{ fontSize: "clamp(26px, 2.5vw, 40px)" }}
+              className="about-quote whitespace-nowrap font-display italic leading-[1.08] tracking-[-0.02em]"
+              style={{
+                fontSize:
+                  quoteSize != null
+                    ? `${quoteSize}px`
+                    : `clamp(${QUOTE_MIN_PX}px, ${QUOTE_VW}vw, ${QUOTE_MAX_PX}px)`,
+              }}
             >
               <span className="about-q-words">{QUOTE_WORDS}</span>{" "}
               <span className="about-q-chars">{QUOTE_CHARS}</span>

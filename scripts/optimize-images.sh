@@ -64,3 +64,14 @@ for mapping in "${MAPPINGS[@]}"; do
   fi
   echo "$(du -h "$dest" | cut -f1)  $dest  (${width}x${height}, alpha=$alpha)"
 done
+
+# --- Full-bleed section art -------------------------------------------
+# The Mount Sinai illustration needs its alpha channel hardened as well as
+# resized — the supplied cutout has a ~19px feathered matte, which made the
+# verses behind it fade out gradually rather than stopping at its edge — so
+# it has its own script rather than a plain cwebp call:
+#
+#   node scripts/build-mountain.mjs
+#
+# Do not fold it back into the loop above: a plain re-encode would restore
+# the soft fringe and the soft transition with it.

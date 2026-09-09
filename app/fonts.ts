@@ -15,6 +15,7 @@ import {
   Playfair_Display,
   DM_Sans,
 } from "next/font/google";
+import localFont from "next/font/local";
 
 /**
  * Primary sans — stand-in for TASA Orbiter (paid; files to be supplied).
@@ -61,5 +62,27 @@ export const referenceFace = DM_Sans({
   subsets: ["latin"],
   weight: "500",
   variable: "--font-reference",
+  display: "swap",
+});
+
+/**
+ * Noto Sans Imperial Aramaic — self-hosted via next/font/local from the
+ * .ttf dropped at the project root (preferred over the Google Fonts link
+ * tags: no external request, no render-blocking round trip, and Next
+ * subsets/preloads it automatically).
+ *
+ * IMPORTANT: despite the similar name, this typeface has ZERO coverage of
+ * the Hebrew square script (U+0590-05FF) the site's verses are written
+ * in — it only covers the distinct ancient Imperial Aramaic script block
+ * (U+10840-1085F), ~2,700 years older and a different alphabet, not a
+ * stylistic variant. Applying it to the existing Hebrew watermark text
+ * changes nothing: the browser silently falls back past it to the next
+ * font in the stack for every glyph actually used. Wired up and ready,
+ * but see the note where it is applied (.hebrew-texture-imperial-aramaic
+ * in globals.css) before using it on real content.
+ */
+export const imperialAramaic = localFont({
+  src: "../Noto_Sans_Imperial_Aramaic/NotoSansImperialAramaic-Regular.ttf",
+  variable: "--font-imperial-aramaic",
   display: "swap",
 });

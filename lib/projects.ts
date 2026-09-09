@@ -72,7 +72,7 @@ export const projects: Project[] = [
           "The interface follows the rhythm of a study session: set an intention and start, watch a live focus state during the session, then unpack a full breakdown afterwards — where focus held, where it broke, and what the body was doing at the time.",
         ],
         image: {
-          src: "/work/interax/ui.png",
+          src: "/work/interax/ui.jpg",
           alt: "Interax app key screens",
         },
       },
@@ -119,19 +119,19 @@ export const projects: Project[] = [
         ],
         placeholder: true,
         image: {
-          src: "/work/aid/frame.png",
+          src: "/work/aid/frame.jpg",
           alt: "Sirho frame CAD render",
         },
       },
     ],
     gallery: [
-      { src: "/work/aid/podium-final.png", alt: "Sirho frame podium render" },
+      { src: "/work/aid/podium-final.jpg", alt: "Sirho frame podium render" },
       {
         src: "/work/aid/podium-deconstructed.jpg",
         alt: "Sirho frame podium, deconstructed view",
       },
       {
-        src: "/work/aid/podium-annotated.png",
+        src: "/work/aid/podium-annotated.jpg",
         alt: "Sirho frame podium render, annotated",
       },
     ],

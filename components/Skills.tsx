@@ -148,13 +148,25 @@ export default function Skills() {
     <section
       ref={sectionRef}
       id="skills"
-      className="flex min-h-svh scroll-mt-12 flex-col justify-center px-6 py-24 md:px-12 md:py-28 lg:px-20"
+      /* py-8 below md, not py-24: with three accordion rows and one
+         expanded blurb stacked on a phone, the section's own top+bottom
+         padding was the single largest contributor to running past the
+         viewport height — bigger than the expanded text itself. Cutting
+         it here (together with the row spacing below) is the
+         load-bearing part of fitting all three rows without a scroll;
+         md:py-28 (desktop, untouched) stays exactly as it was. */
+      className="flex min-h-svh scroll-mt-12 flex-col justify-center px-6 py-8 md:px-12 md:py-28 lg:px-20"
     >
       <p className="section-label section-label-heading">
         Skills
       </p>
 
-      <div className="mt-10 space-y-14 md:space-y-16">
+      {/* mt-6/space-y-6 below md, not mt-10/space-y-14: the last lever
+          toward fitting three accordion rows plus one expanded blurb in
+          a phone's viewport height without scrolling, after the blurb's
+          own font-size and the section's padding above. md:mt-10/
+          md:space-y-16 (desktop) are exactly what they were. */}
+      <div className="mt-6 space-y-4 md:mt-10 md:space-y-16">
         {GROUPS.map((group) => (
           <div
             key={group.title}
@@ -210,63 +222,103 @@ export default function Skills() {
                       final short word is not left on its own. At 1728px the
                       column landed such that "part." and "justify." each hung
                       alone; this fixes that at every width rather than the
-                      one measured. */}
-                  <p className="mt-5 max-w-[52ch] text-pretty text-body-m leading-relaxed text-text-secondary">
+                      one measured.
+                      Smaller below md: with all three accordion rows and one
+                      expanded blurb stacked on a phone, the full section runs
+                      well past the viewport height. */}
+                  <p className="mt-5 max-w-[52ch] text-pretty text-[13px] leading-snug text-text-secondary md:text-body-m md:leading-relaxed">
                     {group.blurb}
                   </p>
                 </div>
               </div>
             </div>
-            <ul className="flex flex-wrap items-start gap-x-3 gap-y-5 self-center md:gap-y-8">
-              {group.tools.map((tool, i) => (
-                <li key={tool.name} className="skill-tool">
-                  {tool.icon ? (
-                    <span className="flex w-24 flex-col items-center gap-2 md:w-28 md:gap-3">
-                      {/* Fixed box: the artwork is already normalised, so
-                          every mark occupies the same square. */}
-                      <span className="skill-logo relative block h-16 w-16 md:h-24 md:w-24">
-                        <Image
-                          src={tool.icon}
-                          alt={tool.name}
-                          fill
-                          sizes="(max-width: 767px) 64px, 96px"
-                          className="object-contain"
-                        />
-                        {/* Shimmer sweep: the same moving-gradient mechanic
-                            as reactbits' ShinyText, but masked by the
-                            logo's own alpha instead of clipped to glyphs,
-                            so the highlight only crosses the mark itself. */}
+            {/* Always a single row of 6 (see .skill-tools-grid) — icons
+                shrink to fit their grid cell rather than the row ever
+                wrapping. flex-wrap's organic wrapping used to land
+                wherever the icons' fixed pixel width happened to break,
+                which at plenty of real widths landed on 2 per row (3
+                rows) or an uneven mix instead. */}
+            <div className="skill-tools self-center">
+              <ul className="skill-tools-grid">
+                {group.tools.map((tool, i) => (
+                  <li key={tool.name} className="skill-tool">
+                    {tool.icon ? (
+                      <span className="flex flex-col items-center gap-2 md:gap-3">
+                        {/* Square, sized by the grid cell (not a fixed px
+                            box) so it scales with whichever of the two
+                            layouts is active. Padded on mobile: six equal
+                            marks sitting edge-to-edge in a narrow column
+                            read as one cluttered strip rather than six
+                            distinct tools — the inset gives each its own
+                            breathing room without shrinking the grid
+                            cell itself. Not needed on desktop, where the
+                            wider columns already carry that space. */}
+                        <span className="skill-logo relative block aspect-square w-full p-1.5 md:p-0">
+                          {/* unoptimized: these marks are already emitted
+                              at a fixed, normalised 256x256 (see the Tool
+                              comment above) — plenty of resolution for the
+                              ~50-110px box they render into, so there is
+                              nothing for Next's resize pipeline to do here
+                              except generate a dozen srcset variants no
+                              browser needs. It also turned out not to be
+                              free: four of these marks (Fusion 360, Rhino,
+                              ANSYS, Blender) were reproducibly failing to
+                              resolve through `/_next/image` — the direct
+                              file always served fine, but the optimizer's
+                              lazy-loaded, multi-candidate srcset never
+                              settled on one for these four specifically,
+                              even minutes later. Serving the file directly
+                              (same fix MountSinai's own base image uses,
+                              for the same reason) sidesteps that pipeline
+                              entirely rather than chasing why. */}
+                          <Image
+                            src={tool.icon}
+                            alt={tool.name}
+                            fill
+                            unoptimized
+                            className="object-contain"
+                          />
+                          {/* Shimmer sweep: the same moving-gradient mechanic
+                              as reactbits' ShinyText, but masked by the
+                              logo's own alpha instead of clipped to glyphs,
+                              so the highlight only crosses the mark itself. */}
+                          <span
+                            aria-hidden
+                            className="skill-shine"
+                            style={{
+                              WebkitMaskImage: `url(${tool.icon})`,
+                              maskImage: `url(${tool.icon})`,
+                              // No modulo: `i % 5` wrapped the sixth mark
+                              // back to zero, so Tableau swept in step with
+                              // Python at the far end of the row instead of
+                              // following its neighbour.
+                              animationDelay: `${i * 0.42}s`,
+                            }}
+                          />
+                        </span>
+                        {/* Name appears with the panel, under its logo —
+                            desktop only. Six columns leave each mobile
+                            cell too narrow for a multi-word name (e.g.
+                            "After Effects", "Adobe Analytics") to stay
+                            legible at any size worth shrinking to, so it
+                            is dropped there rather than wrapped small. */}
                         <span
-                          aria-hidden
-                          className="skill-shine"
-                          style={{
-                            WebkitMaskImage: `url(${tool.icon})`,
-                            maskImage: `url(${tool.icon})`,
-                            // No modulo: `i % 5` wrapped the sixth mark
-                            // back to zero, so Tableau swept in step with
-                            // Python at the far end of the row instead of
-                            // following its neighbour.
-                            animationDelay: `${i * 0.42}s`,
-                          }}
-                        />
+                          className={`hidden text-center text-[clamp(14px,1.1vw,17px)] leading-tight text-text-muted transition-opacity duration-500 md:block ${
+                            open === group.title ? "opacity-100" : "opacity-0"
+                          }`}
+                        >
+                          {tool.name}
+                        </span>
                       </span>
-                      {/* Name appears with the panel, under its logo. */}
-                      <span
-                        className={`text-center text-[clamp(14px,1.1vw,17px)] leading-tight text-text-muted transition-opacity duration-500 ${
-                          open === group.title ? "opacity-100" : "opacity-0"
-                        }`}
-                      >
+                    ) : (
+                      <span className="text-body-l leading-relaxed text-text-secondary">
                         {tool.name}
                       </span>
-                    </span>
-                  ) : (
-                    <span className="text-body-l leading-relaxed text-text-secondary">
-                      {tool.name}
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         ))}
       </div>

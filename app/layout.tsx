@@ -4,6 +4,7 @@ import {
   displaySerif,
   scriptureFace,
   referenceFace,
+  imperialAramaic,
 } from "./fonts";
 import CustomCursor from "@/components/CustomCursor";
 import ProjectPeek from "@/components/ProjectPeek";
@@ -40,7 +41,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${primarySans.variable} ${displaySerif.variable} ${scriptureFace.variable} ${referenceFace.variable} antialiased`}
+      className={`${primarySans.variable} ${displaySerif.variable} ${scriptureFace.variable} ${referenceFace.variable} ${imperialAramaic.variable} antialiased`}
       suppressHydrationWarning
     >
       <head>

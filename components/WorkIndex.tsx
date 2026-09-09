@@ -304,7 +304,19 @@ export default function WorkIndex() {
   }, []);
 
   /* The pinned Home link sits over the big "Projects" title on load.
-     Fade it out while the two overlap, and back in once past it. */
+     Fade it out while the two overlap, and back in once past it.
+
+     On a phone it also has to give up being persistent: with the sticky
+     project headers running the whole scroll (see .wi-topbar), a Home
+     link fixed on screen the entire time reads as permanent chrome
+     competing with them, not a quick way back. Desktop keeps the
+     original always-there behaviour — plenty of horizontal room there
+     for it to sit clear of everything else, which is what the collision
+     fix above is already scoped to (max-width: 767px, matching
+     .wi-topbar's own breakpoint). On mobile it now only shows within a
+     few pixels of the very top, the same threshold style as the
+     overlap check above, and hides again the moment the reader scrolls
+     — reactively, not a one-time fade on load. */
   useEffect(() => {
     const home = homeRef.current;
     const title = document.querySelector<HTMLElement>(".work-title");
@@ -315,8 +327,11 @@ export default function WorkIndex() {
       const h = home.getBoundingClientRect();
       const t = title.getBoundingClientRect();
       const overlapping = t.top < h.bottom + 8 && t.bottom > h.top - 8;
-      home.style.opacity = overlapping ? "0" : "1";
-      home.style.pointerEvents = overlapping ? "none" : "";
+      const isMobile = window.matchMedia("(max-width: 767px)").matches;
+      const scrolledPastTop = isMobile && window.scrollY > 16;
+      const hidden = overlapping || scrolledPastTop;
+      home.style.opacity = hidden ? "0" : "1";
+      home.style.pointerEvents = hidden ? "none" : "";
     };
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(apply);

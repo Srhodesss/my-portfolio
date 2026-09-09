@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
+import { isOverMountainPixel } from "@/lib/mountain-hit-test";
 import { smoothToTop } from "@/lib/section-nav";
 
 /**
@@ -13,7 +14,9 @@ import { smoothToTop } from "@/lib/section-nav";
  *
  * Over interactive elements the palette inverts: the dot turns orange and
  * the ring turns white. Over the folder the ring carries an "Open" label.
- * Over the /work cards the whole thing yields to the "View" bubble.
+ * Over the /work cards the whole thing yields to the "View" bubble. And
+ * over the summit of the closing section's mountain it offers "Top" for
+ * two seconds.
  *
  * Fine pointers with motion allowed only — touch devices and
  * reduced-motion users keep the system cursor (the `cursor-on` class,
@@ -135,6 +138,98 @@ export default function CustomCursor() {
       });
     };
 
+    /* "Top" is an offer, not a fixture. It used to sit on the cursor for
+       as long as the reader was anywhere in the closing section, which
+       said the same thing over and over while they were still reading.
+       Now it belongs to one place: the summit — the cursor shows it for
+       exactly as long as the pointer is inside the zone MountSinai
+       defines (`.ms-peak`, the peak down to roughly the middle of the
+       mountain — see placePeak there), and drops it the instant the
+       pointer leaves, whichever direction that happens in.
+
+       This used to also cap the offer at two seconds even while the
+       cursor sat still on the peak, on the reasoning that a nag reads
+       worse than an early withdrawal — but a timer with no relationship
+       to where the cursor actually is is exactly what a "temperamental"
+       bug report describes: it vanishes on someone who is still reading
+       it, then (since leaving resets the clock) reappears the moment
+       they move, so it looks like it's flickering on its own rather than
+       responding to them. The zone itself is the whole guarantee now:
+       reading topOffered as a plain, un-timed overPeak() means "showing"
+       and "inside the zone" are the same fact, not two things that can
+       drift apart.
+
+       MountSinai owns where the peak is (`.ms-peak`, placed through the
+       same object-fit arithmetic the browser lays the picture out with),
+       so this only has to ask. */
+
+    /* The peak's rect, cached rather than read fresh on every call: this
+       used to re-query the DOM and force a synchronous layout on every
+       single animation frame of syncState below — unconditionally,
+       everywhere on the site, not only near the mountain — stacked on
+       top of MountSinai's own per-frame tracking work doing the same
+       kind of read for its torch. Two independent per-frame layout reads
+       fighting over the same element is exactly what shows up as
+       stutter. The peak only actually moves on scroll (its position is
+       fixed relative to the section, which itself scrolls with the
+       page) or resize, both listened for below, so a cached rect is
+       correct in between — cheap arithmetic against it is all overPeak
+       needs to do every frame. */
+    let peakEl: Element | null = null;
+    let peakRect: DOMRect | null = null;
+    const refreshPeakRect = () => {
+      if (!peakEl) peakEl = document.querySelector(".ms-peak");
+      peakRect = peakEl ? peakEl.getBoundingClientRect() : null;
+    };
+    refreshPeakRect();
+    let peakRaf = 0;
+    const onPeakGeometryChange = () => {
+      if (peakRaf) return;
+      peakRaf = requestAnimationFrame(() => {
+        peakRaf = 0;
+        refreshPeakRect();
+      });
+    };
+    window.addEventListener("scroll", onPeakGeometryChange, { passive: true });
+    window.addEventListener("resize", onPeakGeometryChange);
+    // The authoritative signal: MountSinai dispatches this the instant it
+    // actually repositions/resizes .ms-peak (mount, resize, AND the
+    // mountain image's own "load" — the case scroll/resize above can't
+    // cover, since decoding isn't tied to either). Read immediately, not
+    // rAF-deferred like the two above: this fires at most a few times
+    // total, never on a hot path, so there's no thrash to guard against.
+    window.addEventListener("ms-peak-updated", refreshPeakRect);
+
+    // Two checks, not one: peakRect (a plain axis-aligned box — placePeak
+    // sizes .ms-peak to exactly the mountain's own measured bounding box,
+    // full width, summit to vertical midpoint) is a cheap pre-filter, but
+    // the mountain narrows toward its own peak, so a good deal of that
+    // box's upper corners sit over transparent sky rather than rock. A
+    // rectangle test alone offered "Top" there too, which is the actual
+    // "triggers when the cursor isn't over the mountain" bug — the fix
+    // is the real pixel data, not a smaller or differently-shaped box.
+    // isOverMountainPixel reads the same alpha data and transform
+    // MountSinai pushes to mountain-hit-test on every reposition, so
+    // this always agrees with wherever the picture actually is.
+    const overPeak = () => {
+      if (px < 0) return false;
+      if (!peakRect) refreshPeakRect(); // self-heals if MountSinai mounted later
+      if (!peakRect || !peakRect.width || !peakRect.height) return false;
+      return (
+        px >= peakRect.left &&
+        px <= peakRect.right &&
+        py >= peakRect.top &&
+        py <= peakRect.bottom &&
+        isOverMountainPixel(px, py)
+      );
+    };
+
+    // No timer, no latched "was it just shown" state: whether "Top" is
+    // offered is exactly whether the cursor is in the zone this frame,
+    // full stop. See the comment above for why a timer used to make this
+    // feel unreliable.
+    const topOffered = overPeak;
+
     let stateRaf = 0;
     const syncState = () => {
       stateRaf = requestAnimationFrame(syncState);
@@ -160,10 +255,10 @@ export default function CustomCursor() {
       ring.classList.remove("cursor-hint");
       const yieldsToViewBubble = target?.closest(".work-panel a");
 
-      // The closing section is the end of the page, so the only thing
-      // left to do there is go back up. Anything genuinely clickable in
-      // it (the nav) keeps its own cursor.
-      const closing = !interactive && !!target?.closest("[data-closing]");
+      // Only while the offer stands, and never over something genuinely
+      // clickable (the nav keeps its own cursor).
+      const closing = !interactive && topOffered();
+
 
       ring.classList.toggle("cursor-hot", !!interactive && !folder);
       dot.classList.toggle("cursor-hot", !!interactive && !folder);
@@ -178,13 +273,22 @@ export default function CustomCursor() {
       gsap.to(ring, { autoAlpha: 0, duration: 0.25 });
     };
 
-    // Click the closing section's ground to travel back to the top. This
-    // one scrolls the whole way rather than cross-fading: the reader is
-    // at the end of the page and watching it rewind is the point.
+    // Click to travel back to the top — but only while the cursor is
+    // actually showing "Top". This used to also fire on any click
+    // anywhere in the closing section's ground, a leftover from before
+    // the peak-hover affordance existed: it meant clicking the section
+    // away from the summit — where the cursor shows nothing, or "Scroll"
+    // — silently jumped to the top anyway, disagreeing with what was on
+    // screen. The affordance and the action must never disagree: the
+    // indicator is the only thing promising this click does something,
+    // so it is the only thing allowed to authorise it.
+    // This one scrolls the whole way rather than cross-fading: the
+    // reader is at the end of the page and watching it rewind is the
+    // point.
     const onClick = (e: MouseEvent) => {
       const el = e.target as HTMLElement | null;
-      if (!el?.closest("[data-closing]")) return;
-      if (el.closest("a, button, [role='button']")) return;
+      if (el?.closest("a, button, [role='button']")) return;
+      if (!topOffered()) return;
       smoothToTop();
     };
     document.addEventListener("click", onClick);
@@ -197,6 +301,10 @@ export default function CustomCursor() {
       document.removeEventListener("click", onClick);
       document.documentElement.removeEventListener("pointerleave", onLeave);
       window.removeEventListener("scroll", onScrolled);
+      window.removeEventListener("scroll", onPeakGeometryChange);
+      window.removeEventListener("resize", onPeakGeometryChange);
+      window.removeEventListener("ms-peak-updated", refreshPeakRect);
+      cancelAnimationFrame(peakRaf);
       introWatch?.disconnect();
       cancelAnimationFrame(stateRaf);
       gsap.killTweensOf(ring);

@@ -631,6 +631,20 @@ html:not(.intro-active) .scripture-intro:not([data-mounted]) {
   font-family: "Hebrew Background", serif;
 }
 
+/* Noto Sans Imperial Aramaic (app/fonts.ts, --font-imperial-aramaic) is
+   deliberately NOT chained onto .hebrew-texture above.
+   It is not a no-op: it has zero coverage of Hebrew square script
+   (U+0590-05FF; the site's verses), but next/font/local still generates
+   a synthetic size-matched fallback face — `local("Arial")`, unicode-range
+   unrestricted — and that face DOES have Hebrew glyphs on this platform.
+   Chained ahead of "Hebrew Background" it would win the cascade for every
+   Hebrew character and silently replace the calligraphic face with plain
+   system Arial. Verified: rendering flips from Hebrew Background's script
+   to a generic sans the moment the variable is added to the stack.
+   The font is wired and ready via var(--font-imperial-aramaic) for actual
+   Imperial Aramaic script content (U+10840-1085F) if that is ever added;
+   it has no legitimate use against the current Hebrew verse text. */
+
 /* Character-by-character illumination: each glyph rises in near-black,
    is lit by the warm scripture tone as it lands, then settles to white.
    With the per-character stagger this reads as a band of light moving
@@ -1193,6 +1207,50 @@ html.reveal-ready .cs-stagger > [data-reveal]:nth-child(6) { transition-delay: 4
   .skill-line-fill {
     transform: scaleX(1) !important;
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Skills tool icons — a single row of 6, every width                   */
+/* flex-wrap used to size icons by a fixed px box, so however many       */
+/* happened to fit on a line was whatever the container's width divided  */
+/* into — at plenty of real widths that landed on 2 per row (3 rows) or  */
+/* an uneven mix, never one clean row. A grid with a fixed 6-column      */
+/* track gives exactly that shape at any width, mobile included: icons   */
+/* size to their grid cell (capped) rather than a viewport-tied          */
+/* breakpoint, so they shrink to fit a narrow phone rather than the row  */
+/* ever wrapping.
+   This used to switch to 3-across-over-2-rows below a container-width
+   threshold, on the reasoning that 6 icons would shrink past a
+   comfortable minimum on a phone — deliberately dropped in favour of
+   matching the desktop shape everywhere, at whatever size that leaves
+   each icon on the narrowest screens this runs on. */
+/* ------------------------------------------------------------------ */
+.skill-tools {
+  width: 100%;
+}
+
+.skill-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  column-gap: clamp(8px, 2vw, 24px);
+  row-gap: clamp(20px, 3vw, 32px);
+  /* justify-items stays default `stretch`, not `center` — `center` sized
+     each grid cell down to its own content's intrinsic width instead of
+     the shared 1fr track, so a cell's width depended on what the browser
+     happened to lay the icon out at rather than the grid. That left
+     `.skill-tool`'s own `width: 100%` below with a different 100% to
+     resolve against in every cell, and the icons — themselves sized off
+     that — rendered at as many different sizes as there were icons.
+     Stretching every cell to the equal track width first, then centring
+     the (still max-width-capped) tool inside it via margin, gives every
+     icon the same box to size itself against. */
+  align-items: start;
+}
+
+.skill-tool {
+  width: 100%;
+  max-width: 112px;
+  margin-inline: auto;
 }
 
 /* ------------------------------------------------------------------ */
@@ -2042,19 +2100,464 @@ html.rail-on::-webkit-scrollbar {
   }
 }
 
+/* About heading single-line fit is now computed in components/About.tsx
+   (canvas-measured against the actual container at every width) rather
+   than this fixed mobile-only clamp(), which only covered 375/390/428
+   and left both 768–1023px and ~1024–1400px (the lg: two-column grid
+   roughly halving the column width) free to wrap to two lines. */
+
 /* ------------------------------------------------------------------ */
-/* Mobile: About heading holds one line                                 */
-/* "Engineering products that move people forward." needs 20.1px at     */
-/* 375, 21.0px at 390 and 23.4px at 428 to fit the column on one line.  */
-/* 5.2vw clears all three with margin and still reads as a heading      */
-/* against 17px body copy. The clamp ceiling means it never exceeds the */
-/* size it already had. Overrides the element's inline font-size, whose */
-/* 26px floor is what forced the second line.                           */
+/* Mount Sinai — closing section base visual (components/MountSinai)     */
 /* ------------------------------------------------------------------ */
-@media (max-width: 767px) {
-  .about-quote {
-    font-size: clamp(17px, 5.2vw, 26px) !important;
-    white-space: nowrap;
+.ms-base,
+.ms-torch-img {
+  object-fit: cover;
+  object-position: center bottom;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+/* The ground the verses are written on. It is --bg, the same value as the
+   illustration's own sky, so the layer has no visible edge against the
+   page. (It also isolates the stack, which no longer matters for
+   blending but keeps the composite self-contained.) */
+.ms-plate,
+.ms-torch-inner {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  isolation: isolate;
+}
+
+/* Geometry only — never painted, never hit-tested. CustomCursor reads its
+   box to decide where the "Top" affordance belongs. */
+.ms-peak {
+  position: absolute;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+/* "Hover to reveal" — same typographic treatment as the cursor's own
+   hint label (site-cursor-label: the sans font, 600 weight, -0.01em
+   tracking, same 0.25s opacity fade), but in the site's quieter,
+   greyed-out caption tone rather than the cursor's accent orange — this
+   sits in the layout, not inside the cursor ring, so it reads as a
+   caption rather than a control. --text-muted, not --text-secondary:
+   the latter is what actual paragraph prose uses (About, the case
+   studies) and reads closer to white than grey against this section's
+   near-black rest state; --text-muted is the tone the site already
+   reaches for whenever something should read as a quiet aside rather
+   than content in its own right (the overline labels, captions). Timed
+   and classed entirely from MountSinai's effect. */
+.ms-hint {
+  /* left/top are the mountain's own visible-area, a bit above centre
+     (HINT_V_FRACTION), set by placePeak() (getMountainBBox) — this only
+     centres the label on that point. */
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-weight: 600;
+  /* Settled at 15px: 12px read as an afterthought, 20px overstated a
+     caption; back down a step from the larger pass with normal, not
+     exaggerated, tracking (below) doing the rest of the work. */
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.ms-hint.ms-hint-in {
+  opacity: 1;
+}
+
+/* Wins over .ms-hint-in at equal specificity by coming later — both
+   classes are present by the 3s mark, since the fade-in and fade-out
+   timers only ever add classes, never remove the one before. */
+.ms-hint.ms-hint-out {
+  opacity: 0;
+}
+
+/* Same travelling wave the cursor's own "Scroll" hint uses on its
+   per-character spans (see .cursor-ch / cursor-ch-wave above) — one
+   pulse runs through the word as it appears, then it holds still rather
+   than fidgeting for the rest of its 3s on screen. Scoped to
+   .ms-hint-in so it never plays on the reduced-motion path, where
+   .ms-hint is display:none outright below. */
+.ms-hint.ms-hint-in .cursor-ch {
+  animation: cursor-ch-wave 3s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+/* The skill icons' own shine (.skill-shine above), adapted for type: a
+   gradient can't be masked to an image URL the way an icon is, but
+   background-clip: text gives the same "highlight only crosses the
+   actual mark" result for glyphs — a second, exact copy of the label's
+   text, laid over the first via inset:0, with its own fill made
+   transparent so only the sweep itself is visible. Reuses the identical
+   skill-shine keyframe (same gradient, same easing) rather than a
+   near-duplicate, at 3s instead of the icons' 3.4s so it shares
+   cursor-ch-wave's own cycle length exactly. */
+.ms-hint-shine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  background-image: linear-gradient(
+    120deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.85) 50%,
+    transparent 65%
+  );
+  background-size: 200% auto;
+  background-repeat: no-repeat;
+  background-position: 150% center;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.ms-hint.ms-hint-in .ms-hint-shine {
+  animation: skill-shine 3s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-hint {
+    display: none;
+  }
+}
+
+.ms-hebrew {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* Container only — every child is one row's stationary scrim, positioned
+   and painted entirely from MountSinai's updateHorizontalFade. Sits
+   after .ms-hebrew and before .ms-base in paint order: text, then the
+   fade toward the silhouette, then the mountain itself. */
+.ms-hfade {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* At rest the verses must survive BEHIND the mountain, not just beside
+   it. Under `lighten` the brighter layer wins, so at the hero's 6% the
+   field was beaten everywhere the darkened mountain rose above ~57 in
+   the source — i.e. across its whole body, leaving the writing visible
+   only in the sky above the peak. 11% clears the rock and the flanks, so
+   the mountain stands on a continuous backdrop and only the genuinely
+   lit snow occludes it. */
+.ms-plate .ms-hebrew {
+  --wm-strength: 7%;
+}
+
+/* What the torch does to the verses. Pitched above where the lifted
+   mountain's rock lands, so the writing reads through the body of the
+   mountain inside the pool and only the lit snow stands in front. */
+.ms-hebrew-lit {
+  --wm-strength: 46%;
+}
+
+/* The verses must stop where the mountain does, not run on past it to
+   the nav. Both stacks share the plain .ms-hebrew class, so one rule
+   covers both: solid until 260px above the mountain's own bottom edge
+   (--ms-foot, the same variable the image box ends on), fading to fully
+   transparent exactly there, and staying transparent the rest of the way
+   down. Below the mountain is plain section background from that point
+   on — nothing renders there, at rest or under the pool.
+   This used to be anchored to a fixed distance from the SECTION's foot
+   (clearing the nav) rather than the mountain's, which left two separate
+   problems: text visibly running on in the gap between the mountain's
+   edge and that band at rest (below what item 1 asks for), and — because
+   only this resting copy carried any mask at all — the LIT copy had no
+   floor whatsoever, so hovering anywhere below the mountain's edge lit up
+   text that was never visible at rest. Give both the same boundary and
+   both problems go away together.
+
+   The distance was originally 66px — measured against the verse rows'
+   own pitch (~76px at typical viewport heights), that is LESS than one
+   row's height: a line could go from fully visible to fully gone within
+   less than the gap to its neighbour, which reads as a cut, not a fade.
+   260px spans several rows instead, and the four intermediate stops
+   approximate a smoothstep ease (slow-fast-slow) rather than a straight
+   linear ramp, so the last lines dim down gradually rather than snapping
+   dark right at the boundary. */
+/* Reaches true zero 50px BEFORE --ms-foot, not exactly at it, then holds
+   zero the rest of the way — the text is genuinely gone with a margin to
+   spare before the boundary, rather than its last flicker of visibility
+   coinciding with the edge itself. */
+.ms-field .ms-hebrew {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black calc(100% - var(--ms-foot, 0px) - 310px),
+    rgba(0, 0, 0, 0.85) calc(100% - var(--ms-foot, 0px) - 245px),
+    rgba(0, 0, 0, 0.5) calc(100% - var(--ms-foot, 0px) - 180px),
+    rgba(0, 0, 0, 0.15) calc(100% - var(--ms-foot, 0px) - 115px),
+    transparent calc(100% - var(--ms-foot, 0px) - 50px)
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black calc(100% - var(--ms-foot, 0px) - 310px),
+    rgba(0, 0, 0, 0.85) calc(100% - var(--ms-foot, 0px) - 245px),
+    rgba(0, 0, 0, 0.5) calc(100% - var(--ms-foot, 0px) - 180px),
+    rgba(0, 0, 0, 0.15) calc(100% - var(--ms-foot, 0px) - 115px),
+    transparent calc(100% - var(--ms-foot, 0px) - 50px)
+  );
+}
+
+/* A mobile-specific version of this mask once lived here, tightening the
+   margin above to account for the mountain's letterboxed `contain`
+   treatment covering less of its box than `cover` does. Below the lg
+   breakpoint the mountain is now hidden outright rather than scaled or
+   letterboxed (see .ms-base), so that coverage gap can't recur — the
+   plain 66px-above-foot formula above is correct at every width again,
+   the same as it was before mobile had any special mountain treatment. */
+
+/* The box stops at the name's baseline (--ms-foot, written from JS) and
+   the picture is anchored to the bottom of it, so the mountain's foot —
+   which is the bottom edge of the file — lands exactly on the type.
+
+   That gave the box a genuinely hard bottom edge for the first time (it
+   used to just be inset:0, ending at the section's own foot, behind the
+   nav). Even resting near-black (see .ms-base's own brightness rule
+   below), the rock doesn't measure the same as the page's flat #0a0a0a,
+   so that hard edge is a real, if faint, step in luminance sitting right
+   where the verses read as "a line underneath" them — and the resting
+   brightness has only been pushed darker since this mask was first
+   tuned, which widened the gap it has to hide rather than closed it.
+   The mask below dissolves the box into the page well before that edge
+   instead of cutting it off: eased, not linear, over a much longer run
+   than the original flat 32px — a short linear ramp still reads as an
+   edge with soft shoulders, where a longer, eased one reads as the
+   picture actually thinning into the page. */
+.ms-base {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  width: 100%;
+  /* An explicit height, NOT `bottom`: a replaced element with both top and
+     bottom set is over-constrained, so the browser drops bottom and sizes
+     the box from the image's own aspect ratio instead. */
+  height: calc(100% - var(--ms-foot, 0px));
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black calc(100% - 220px),
+    rgba(0, 0, 0, 0.85) calc(100% - 165px),
+    rgba(0, 0, 0, 0.5) calc(100% - 110px),
+    rgba(0, 0, 0, 0.15) calc(100% - 55px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black calc(100% - 220px),
+    rgba(0, 0, 0, 0.85) calc(100% - 165px),
+    rgba(0, 0, 0, 0.5) calc(100% - 110px),
+    rgba(0, 0, 0, 0.15) calc(100% - 55px),
+    transparent 100%
+  );
+}
+
+/* No blend mode. The asset now carries its own alpha (built by
+   scripts/build-mountain-matte.mjs), so the sky is simply absent and
+   every pixel of the mountain is opaque — the verses are hidden behind
+   the whole silhouette, dark rock as well as lit snow.
+   `lighten` used to do the sky's disappearing act, but it did it by
+   letting the brighter layer win pixel for pixel, which is exactly why
+   the writing read through the dark rock. Alpha separates the two
+   concerns properly.
+   Both copies read the same entrance variables, set once per frame on
+   the field, so the lit stack cannot drift out of register with the
+   resting one mid-entrance. */
+.ms-base,
+.ms-torch-img {
+  opacity: var(--ms-in, 1);
+  transform: translate3d(0, var(--ms-rise, 0px), 0);
+}
+
+/* The dim is the rest state everywhere, not just where the torch runs:
+   its job is to keep the illustration from overpowering the name mark,
+   and that holds whether or not there is a cursor to light it. The torch
+   is the reward for having a mouse; the restraint is for everyone.
+   Reduced motion is the one exception, below. */
+.ms-base {
+  /* Near-black at rest, pushed further still: `brightness()` is a flat
+     multiply, so at 0.08 the tip (bright snow in the source art) and the
+     base (dark rock) were still two clearly different values — dim, but
+     each recognisably itself. The point of the torch is a discovery, so
+     the two need to read as almost the same near-nothing before it: the
+     multiply shrinks both toward zero together, which shrinks the GAP
+     between them at the same rate, so pushing it this much further is
+     what actually flattens tip and base into each other rather than just
+     dimming a picture that still reads as a picture. Free to tune purely
+     for how dark the illustration should look at rest: the mountain's
+     opacity toward the verses behind it is carried by the asset's own
+     alpha channel, not by this filter, so darkening it further here
+     doesn't touch that. */
+  filter: brightness(0.025);
+}
+
+.ms-torch {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  /* The nav bar owns the bottom 62px of the section, and the pool must
+     never wash across the links whatever the cursor is doing. This is
+     the guarantee; the JS fade below is the courtesy.
+     Sized to the nav and nothing more. It was once 240px/96px, which
+     reached a quarter of the way up the section and cut the glow off
+     across the whole base of the mountain — the torch could only ever
+     uncover the peak. The taper now ends just above the links. */
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black calc(100% - 130px),
+    transparent calc(100% - 68px)
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black calc(100% - 130px),
+    transparent calc(100% - 68px)
+  );
+}
+
+/* No mouse, no motion, or no JS: drop the pool entirely rather than
+   leaving a filtered, masked layer sitting at zero opacity for the
+   compositor to carry around. */
+.ms-field:not(.ms-live) .ms-torch {
+  display: none;
+}
+
+.ms-torch-mover {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--ms-r, 320px) * 2);
+  height: calc(var(--ms-r, 320px) * 2);
+  margin-left: calc(var(--ms-r, 320px) * -1);
+  margin-top: calc(var(--ms-r, 320px) * -1);
+  will-change: transform;
+  /* The torch copy inside is section-sized and so overflows this box on
+     every side. Both of these matter: without no-repeat the gradient
+     tiles across the overflow and paints extra pools with hard seams
+     between them, and without the clip the untouched corners of the
+     mask's own tile would still show image. */
+  overflow: hidden;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  /* A long, soft falloff rather than a disc with a feathered rim — the
+     stops approximate a gaussian so there is no visible ring anywhere in
+     the pool. */
+  -webkit-mask-image: radial-gradient(
+    circle closest-side at center,
+    rgba(0, 0, 0, 1) 0%,
+    rgba(0, 0, 0, 0.97) 12%,
+    rgba(0, 0, 0, 0.88) 24%,
+    rgba(0, 0, 0, 0.73) 36%,
+    rgba(0, 0, 0, 0.55) 48%,
+    rgba(0, 0, 0, 0.37) 60%,
+    rgba(0, 0, 0, 0.21) 72%,
+    rgba(0, 0, 0, 0.09) 84%,
+    rgba(0, 0, 0, 0.02) 93%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(
+    circle closest-side at center,
+    rgba(0, 0, 0, 1) 0%,
+    rgba(0, 0, 0, 0.97) 12%,
+    rgba(0, 0, 0, 0.88) 24%,
+    rgba(0, 0, 0, 0.73) 36%,
+    rgba(0, 0, 0, 0.55) 48%,
+    rgba(0, 0, 0, 0.37) 60%,
+    rgba(0, 0, 0, 0.21) 72%,
+    rgba(0, 0, 0, 0.09) 84%,
+    rgba(0, 0, 0, 0.02) 93%,
+    transparent 100%
+  );
+}
+
+/* Width and height are set in px from JS — this element's parent is the
+   pool's own box, so a percentage would size it to the pool, not the
+   section. */
+/* The lit stack is what moves and what carries the pool's box; the layers
+   inside it just fill it. */
+.ms-torch-inner {
+  will-change: transform;
+}
+
+.ms-torch-img {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  width: 100%;
+  height: calc(100% - var(--ms-foot, 0px));
+  /* Same edge, same fade — see .ms-base. */
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black calc(100% - 32px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black calc(100% - 32px),
+    transparent 100%
+  );
+  /* The alpha copy is composited every frame inside the moving pool;
+     giving it its own layer keeps that out of the parent's raster. */
+  will-change: transform, opacity;
+  /* Preflight's `img { max-width: 100% }` would otherwise clamp this to
+     the pool's box, so the copy would `cover`-crop at a different scale
+     from the base and show a seam where the two disagree. */
+  max-width: none;
+  max-height: none;
+  /* The lift curve (see the filter def in MountSinai): black stays black,
+     so the pool is invisible over the sky and only resolves where there
+     is mountain; the summit cannot blow out.
+     Saturation comes DOWN, not up. The curve raises shadow values about
+     threefold, and the artwork's own colour variation in the dark rock
+     rises with them — checked against the source PNG, which shows the
+     same spread, so this is the illustration, not the encoder. Left
+     boosted it read as green and magenta blotching; the lift supplies
+     plenty of warmth on its own. */
+  filter: url(#ms-lift) saturate(0.9);
+}
+
+/* A 2.36:1 panorama inside a tall phone viewport used to be handled by
+   overflowing it to 180% width with `object-fit: contain` — `cover`
+   cropped it too hard to read as a mountain, plain `contain` shrank it
+   to a distant speck. That treatment is gone: below the lg breakpoint
+   the mountain is hidden outright instead of scaled down further, so
+   there is no box left to fit the panorama into on a phone at all.
+   `.ms-torch-img` needs no matching rule — MountSinai's own effect now
+   gates the whole torch/pointer-tracking mechanism behind the same
+   `(min-width: 1024px)` check, so `.ms-live` never lands below it and
+   `.ms-torch` stays at its own default `display: none`. */
+@media (max-width: 1023px) {
+  .ms-base {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-base {
+    filter: none;
+  }
+  .ms-torch {
+    display: none;
   }
 }
 
