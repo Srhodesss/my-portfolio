@@ -4,15 +4,37 @@
     {
       "name": "dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3000,
       "autoPort": true
     },
     {
       "name": "sirho-static",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8431", "-d", "/Users/sinairhodes/Documents/sirho-frames-site/output"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8431",
+        "-d",
+        "/Users/sinairhodes/Documents/sirho-frames-site/output"
+      ],
       "port": 8431
+    },
+    {
+      "name": "prod",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "next",
+        "start",
+        "-H",
+        "0.0.0.0",
+        "-p",
+        "3001"
+      ],
+      "port": 3001
     }
   ]
 }

@@ -33,6 +33,7 @@ export default function PdfPage({
   const boxRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [rev, setRev] = useState(0);
 
   // Re-render when the box actually changes size (e.g. window resize),
@@ -69,44 +70,57 @@ export default function PdfPage({
     let task: { cancel: () => void; promise: Promise<unknown> } | null = null;
 
     const run = async () => {
-      // Wait for the box to be laid out rather than giving up on a
-      // zero-size measurement during a transition.
-      let tries = 0;
-      while (
-        (box.clientWidth === 0 || box.clientHeight === 0) &&
-        tries++ < 40 &&
-        !cancelled
-      ) {
-        await new Promise((r) => requestAnimationFrame(r));
-      }
-      if (cancelled || box.clientWidth === 0 || box.clientHeight === 0) return;
-
-      const doc = await getPdf(url);
-      if (cancelled) return;
-      const pg = await doc.getPage(page);
-      if (cancelled) return;
-
-      const base = pg.getViewport({ scale: 1 });
-      const fit = Math.min(
-        box.clientWidth / base.width,
-        box.clientHeight / base.height,
-      );
-      const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
-      const vp = pg.getViewport({ scale: fit * dpr });
-
-      canvas.width = Math.floor(vp.width);
-      canvas.height = Math.floor(vp.height);
-      canvas.style.width = `${Math.round(base.width * fit)}px`;
-      canvas.style.height = `${Math.round(base.height * fit)}px`;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-
-      task = pg.render({ canvas, canvasContext: ctx, viewport: vp });
       try {
+        // Wait for the box to be laid out rather than giving up on a
+        // zero-size measurement during a transition.
+        let tries = 0;
+        while (
+          (box.clientWidth === 0 || box.clientHeight === 0) &&
+          tries++ < 40 &&
+          !cancelled
+        ) {
+          await new Promise((r) => requestAnimationFrame(r));
+        }
+        if (cancelled || box.clientWidth === 0 || box.clientHeight === 0) return;
+
+        const doc = await getPdf(url);
+        if (cancelled) return;
+        const pg = await doc.getPage(page);
+        if (cancelled) return;
+
+        const base = pg.getViewport({ scale: 1 });
+        const fit = Math.min(
+          box.clientWidth / base.width,
+          box.clientHeight / base.height,
+        );
+        const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+        const vp = pg.getViewport({ scale: fit * dpr });
+
+        canvas.width = Math.floor(vp.width);
+        canvas.height = Math.floor(vp.height);
+        canvas.style.width = `${Math.round(base.width * fit)}px`;
+        canvas.style.height = `${Math.round(base.height * fit)}px`;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+
+        task = pg.render({ canvas, canvasContext: ctx, viewport: vp });
         await task.promise;
         if (!cancelled) setReady(true);
-      } catch {
-        /* render cancelled/superseded — ignore */
+      } catch (err) {
+        // A cancelled/superseded render also rejects here — this file
+        // cancels its own task on cleanup, so that path always has
+        // `cancelled` set true by the time the rejection lands and stays
+        // silent. Anything that rejects with `cancelled` still false is a
+        // real failure PDF.js hit rendering this page, and this was
+        // previously swallowed identically to an intentional cancel —
+        // indistinguishable from the outside as a permanently blank
+        // canvas with nothing in the console. Surfaced visibly, not just
+        // logged, since the page that needs this most is read on a phone
+        // with no attached devtools.
+        if (!cancelled) {
+          console.error(`PdfPage: page ${page} of ${url} failed to render`, err);
+          setError(err instanceof Error ? err.message : String(err));
+        }
       }
     };
 
@@ -124,7 +138,7 @@ export default function PdfPage({
   return (
     <div
       ref={boxRef}
-      className={`flex h-full w-full items-center justify-center ${className}`}
+      className={`relative flex h-full w-full items-center justify-center ${className}`}
     >
       <canvas
         ref={canvasRef}
@@ -134,6 +148,11 @@ export default function PdfPage({
           ready ? "opacity-100" : "opacity-0"
         }`}
       />
+      {error && (
+        <p className="absolute max-w-[80%] px-4 text-center text-xs text-text-muted">
+          Page {page} failed to render: {error}
+        </p>
+      )}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { splitText } from "animejs";
 import RippleText from "@/components/RippleText";
 import FlipLink from "@/components/FlipLink";
 import { getLenis } from "@/components/SmoothScroll";
+import { clamp01 } from "@/lib/math";
 
 /**
  * Contact — one large confident heading, a single call to action.
@@ -52,9 +53,8 @@ export default function Contact() {
     leadEl.style.opacity = "1";
     wordEl.style.opacity = "1";
 
-    const clamp = (v: number) => Math.min(1, Math.max(0, v));
     const smooth = (v: number) => {
-      const c = clamp(v);
+      const c = clamp01(v);
       return c * c * (3 - 2 * c);
     };
 
@@ -66,11 +66,23 @@ export default function Contact() {
     // exactly backwards on the way up — words un-reveal in reverse, the
     // characters re-blur — rather than firing once and staying put.
     let raf = 0;
+    // Last value actually published. Everything below is a pure function
+    // of rp, so an unchanged rp means every write this frame would set
+    // the value that is already there.
+    let lastRp = "";
+    let lastScrollY = -1;
     const frame = () => {
-      raf = requestAnimationFrame(frame);
+      raf = 0;
+      // The rp guard below stops the WRITES when nothing changed, but the
+      // rect read above it still happened on every scroll event — and at
+      // the foot of the page, where this section's gate can never close,
+      // those events keep arriving at a clamped position. Guarding on the
+      // position skips the read too.
+      const y = window.scrollY;
+      if (y === lastScrollY) return;
+      lastScrollY = y;
       const vh = window.innerHeight;
       const r = section.getBoundingClientRect();
-      if (r.bottom < -300 || r.top > vh + 300) return;
 
       // Starts only once the black veil has peaked (BlackTransition tops
       // out as this section's top crosses mid-viewport), so the heading
@@ -79,7 +91,33 @@ export default function Contact() {
       // in the section's travel, which is what lets the nav land with the
       // "Contact" title at the same clearance as every other section
       // instead of being held back waiting for the CTA to arrive.
-      const rp = clamp((vh * 0.52 - r.top) / (vh * 0.6));
+      const rp = clamp01((vh * 0.52 - r.top) / (vh * 0.6));
+      // Exposed so ScrollPacing can slow scroll further specifically
+      // while "together." is animating in (rp 0.5–0.74 below), without
+      // a second, independent mechanism also mutating Lenis's
+      // multipliers — one authoritative place reading this section's
+      // own already-computed progress instead.
+      /* Measured parked on the bottom hero with zero scroll input, on a
+         120Hz display: 120 section rect reads and 120 --contact-rp
+         writes per second, forever, every one of them writing the
+         identical value — rp is pinned at 1 down there. The section's
+         IntersectionObserver gate below was working exactly as written;
+         it simply cannot ever close at the foot of the page, because the
+         closing section is one viewport tall (min-h-svh) and sits
+         directly under this one, so Contact's bottom edge is pinned to
+         the viewport's top edge and stays permanently inside the 300px
+         margin (measured: rect.bottom exactly 0, ratio 0.333,
+         isIntersecting true).
+         --contact-rp is set on the section root, so each of those writes
+         also invalidated style for this section's whole subtree — the
+         same shape of bug as the --ms-in/--ms-rise writes on .ms-field,
+         which measured 4.7ms of style recalc per frame. Publishing only
+         on change is what makes the parked cost actually zero rather
+         than merely small. */
+      const rpStr = rp.toFixed(3);
+      if (rpStr === lastRp) return;
+      lastRp = rpStr;
+      section.style.setProperty("--contact-rp", rpStr);
 
       const wStep = words.length > 1 ? 0.22 / words.length : 0;
       words.forEach((el, i) => {
@@ -96,7 +134,16 @@ export default function Contact() {
         const local = smooth((rp - 0.5 - j * cStep) / 0.24);
         el.style.opacity = String(local);
         el.style.transform = `translateY(${((1 - local) * 18).toFixed(2)}px)`;
-        el.style.filter = `blur(${((1 - local) * 9).toFixed(2)}px)`;
+        // Cleared outright once the character has landed, rather than left
+        // sitting at blur(0). A zero-radius blur is still a filter: the
+        // element keeps its own offscreen buffer for as long as the
+        // property is set, so every character of "together." was holding
+        // one permanently — through the whole Contact-to-closing scroll,
+        // which is also where ScrollPacing deliberately drops the
+        // multiplier to a near-stop (CONTACT_NEAR_PAUSE). Heaviest
+        // possible place to keep filters alive for no visual gain.
+        const blur = (1 - local) * 9;
+        el.style.filter = blur < 0.05 ? "" : `blur(${blur.toFixed(2)}px)`;
       });
 
       if (cta) {
@@ -105,9 +152,47 @@ export default function Contact() {
         cta.style.transform = `translateY(${((1 - c) * 20).toFixed(2)}px)`;
       }
     };
-    raf = requestAnimationFrame(frame);
+
+    // Only run the loop while the section is within reach of the
+    // viewport (±300px, same range the old per-frame bail-out checked)
+    // instead of unconditionally for the section's entire mounted
+    // lifetime — Contact sits at the very bottom of the page, so that
+    // used to mean 60 wasted frames a second for as long as the page
+    // stayed open before anyone scrolled this far, if they ever did.
+    // Scroll- and resize-driven rather than a free-running loop. The
+    // section's rect only moves when the page scrolls or the viewport
+    // resizes, so a self-perpetuating requestAnimationFrame was asking
+    // "has anything changed?" 120 times a second to answer "no" —
+    // MountSinai already drives its own scroll-linked work this way.
+    const schedule = () => {
+      if (!raf) raf = requestAnimationFrame(frame);
+    };
+    // Resize moves the geometry without moving the page.
+    const scheduleResize = () => {
+      lastScrollY = -1;
+      schedule();
+    };
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          window.addEventListener("scroll", schedule, { passive: true });
+          window.addEventListener("resize", scheduleResize);
+          schedule();
+        } else {
+          window.removeEventListener("scroll", schedule);
+          window.removeEventListener("resize", scheduleResize);
+          cancelAnimationFrame(raf);
+          raf = 0;
+        }
+      },
+      { rootMargin: "300px 0px 300px 0px" },
+    );
+    io.observe(section);
 
   return () => {
+      io.disconnect();
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", scheduleResize);
       cancelAnimationFrame(raf);
       leadSplit.revert();
       charSplit.revert();

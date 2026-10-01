@@ -3,6 +3,8 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { splitText } from "animejs";
+import { clamp01 } from "@/lib/math";
+import { useStableVh } from "@/lib/use-stable-vh";
 
 /**
  * About — reveals are scroll-scrubbed, not fire-once. One Anime.js
@@ -60,6 +62,7 @@ const PARA_2 =
 export default function About() {
   const sectionRef = useRef<HTMLElement>(null);
   const [quoteSize, setQuoteSize] = useState<number | null>(null);
+  const vhRef = useStableVh();
 
   /**
    * Force the quote onto a single line at every viewport width by shrinking
@@ -123,15 +126,25 @@ export default function About() {
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
+    const isMobile = window.matchMedia("(max-width: 767px)").matches;
+
     const section = sectionRef.current!;
     const wordsEl = section.querySelector<HTMLElement>(".about-q-words")!;
     const charsEl = section.querySelector<HTMLElement>(".about-q-chars")!;
     const copyEl = section.querySelector<HTMLElement>(".about-copy")!;
     const imgEl = section.querySelector<HTMLElement>(".about-img")!;
+    // Drift's transform target — see the comment on .about-img-inner in
+    // the JSX for why it can't be imgEl itself.
+    const imgInner = section.querySelector<HTMLElement>(".about-img-inner")!;
+    // Queried once, not every frame — `.about-inner` never changes, so the
+    // per-frame loop below used to re-walk the DOM for it 60 times a
+    // second for no reason.
+    const inner = section.querySelector<HTMLElement>(".about-inner")!;
 
     section.classList.add("about-live");
 
-    // Split the opening clause into words and "forward." into characters.
+    // Split the opening clause into words always; "forward." into
+    // characters only where that stagger is actually wanted.
     const wordSplit = splitText(wordsEl, { words: true, chars: false });
     const charSplit = splitText(charsEl, { chars: true, words: false });
 
@@ -155,11 +168,10 @@ export default function About() {
       ? (charSplit.chars as HTMLElement[])
       : [charsEl];
 
-    const clamp = (v: number) => Math.min(1, Math.max(0, v));
     // Smoothstep, so each piece eases in/out of its own sub-window rather
     // than moving linearly.
     const smooth = (v: number) => {
-      const c = clamp(v);
+      const c = clamp01(v);
       return c * c * (3 - 2 * c);
     };
 
@@ -170,15 +182,34 @@ export default function About() {
     // each word/char/element in exact reverse — with no fixed-duration
     // triggers. #about is slowed by ScrollPacing, so it reads as heavy,
     // directly-controlled scroll.
+    //
+    // A pass here tried caching section/imgEl/head's positions and
+    // deriving the live value from window.scrollY instead of calling
+    // getBoundingClientRect() on all three every frame. It surfaced a
+    // real, reproducible ~15px drift between the cache and a fresh read
+    // that four different invalidation strategies (a ResizeObserver on
+    // all three elements, one on document.documentElement, a two-frame
+    // settle check, and a flat 1200ms fallback timer) each failed to
+    // close by even a pixel — meaning none of them were hitting the
+    // actual cause, which was never pinned down. Shipping a reveal that's
+    // silently ~1-2% mistimed against a mechanism nobody understands is
+    // worse than the forced layout reads this was trying to avoid, so
+    // this reverts to always-fresh reads. What's kept from that attempt:
+    // `inner` is queried once above instead of every frame, and the drift
+    // below reuses dNorm instead of recomputing the identical formula
+    // under a different name.
     let raf = 0;
     const frame = () => {
       raf = requestAnimationFrame(frame);
-      const vh = window.innerHeight;
-      const r = section.getBoundingClientRect();
-      if (r.bottom < -300 || r.top > vh + 300) return;
+      // Mobile reads a debounced height instead of the live one — see
+      // lib/use-stable-vh: iOS Chrome/Safari's toolbar show/hide changes
+      // window.innerHeight mid-gesture, which fed straight into this
+      // reveal math as extra jitter, worse on Chrome than Safari since
+      // their toolbar timing differs. Desktop has no such chrome and
+      // keeps reading the live value.
+      const vh = isMobile ? vhRef.current : window.innerHeight;
 
       const ib = imgEl.getBoundingClientRect();
-      const inner = section.querySelector<HTMLElement>(".about-inner")!;
 
       // Everything is keyed to how far the portrait's centre still is from
       // the centre of the viewport, in viewport units. dNorm = 0 is the
@@ -206,10 +237,12 @@ export default function About() {
       // close back up as the block settles. Because the offset is a pure
       // function of the live scroll position (not a played animation), it
       // unwinds in exact reverse on the way back up.
-      const drift = (ib.top + ib.height / 2 - vh / 2) / vh;
+      // (Identical formula to dNorm above — reused rather than
+      // recomputed from scratch under a different name.)
+      const drift = dNorm;
       head.style.transform = `translate3d(0, ${(drift * 34).toFixed(2)}px, 0)`;
       copyEl.style.transform = `translate3d(0, ${(drift * 58).toFixed(2)}px, 0)`;
-      imgEl.style.transform = `translate3d(0, ${(drift * -26).toFixed(2)}px, 0)`;
+      imgInner.style.transform = `translate3d(0, ${(drift * -26).toFixed(2)}px, 0)`;
 
       const HEAD_END = 0.55;
       const wSpan = HEAD_END * 0.6;
@@ -257,20 +290,39 @@ export default function About() {
       // About is gone before the pills stage arrives.
       inner.style.opacity = String(smooth(1 + (dNorm + 0.12) / 0.5));
     };
-    raf = requestAnimationFrame(frame);
+
+    // Only run the loop while the section is within reach of the
+    // viewport (matching the old ±300px bail-out this replaces) instead
+    // of unconditionally for the section's entire mounted lifetime — on
+    // a page this tall, that used to mean the whole time the page is
+    // open, reading section.getBoundingClientRect() 60x/sec just to
+    // bail out early whenever About was nowhere near the screen.
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          if (!raf) raf = requestAnimationFrame(frame);
+        } else {
+          cancelAnimationFrame(raf);
+          raf = 0;
+        }
+      },
+      { rootMargin: "300px 0px 300px 0px" },
+    );
+    io.observe(section);
 
     return () => {
+      io.disconnect();
       cancelAnimationFrame(raf);
       wordSplit.revert();
-      charSplit.revert();
-      [head, copyEl, imgEl].forEach((el) => {
+      charSplit?.revert();
+      [head, copyEl, imgEl, imgInner].forEach((el) => {
         el.style.transform = "";
         el.style.filter = "";
         el.style.opacity = "";
       });
       section.classList.remove("about-live");
     };
-  }, []);
+  }, [vhRef]);
 
   return (
     <section
@@ -312,15 +364,29 @@ export default function About() {
           </div>
 
           <div className="about-img relative -mr-10 aspect-[4/5] w-[76%] justify-self-end overflow-hidden rounded-l-[28px] border border-border bg-black md:-mr-16 lg:-mr-[5vw] lg:aspect-[6/5] lg:w-[47vw]">
-            <Image
-              src="/about/portrait.jpg"
-              alt="Portrait of Sinai Rhodes"
-              fill
-              sizes="(min-width: 1024px) 47vw, 76vw"
-              className="object-cover"
-              style={{ objectPosition: "50% 28%" }}
-              priority
-            />
+            {/* The drift transform lives on this wrapper, not .about-img
+                itself, which is what carries the blur filter — WebKit
+                (every iOS browser) re-rasterises a filter's whole blur on
+                every frame its OWN element's transform changes, so
+                animating both on one node was the reintroduced cost once
+                the drift/blur pair came back for mobile. The equivalent
+                split on the folder's own drop-shadow (WorkSequence.tsx /
+                globals.css) had to be reverted — it broke that glow on
+                real Safari for a reason not yet identified — but blur()
+                here stays fully inside this box's own overflow-hidden
+                clip, unlike a drop-shadow that needs to paint outside its
+                element's bounds, so it isn't necessarily the same risk. */}
+            <div className="about-img-inner absolute inset-0">
+              <Image
+                src="/about/portrait.jpg"
+                alt="Portrait of Sinai Rhodes"
+                fill
+                sizes="(min-width: 1024px) 47vw, 76vw"
+                className="object-cover"
+                style={{ objectPosition: "68% 28%" }}
+                priority
+              />
+            </div>
           </div>
         </div>
       </div>

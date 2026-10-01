@@ -37,10 +37,89 @@ const FADE_START_MS = Math.round(WRITE_END_MS + CHAR_SETTLE_MS + 200);
 const FADE_MS = 700;
 const ATTRIBUTION_DELAY_S = WRITE_END_MS / 1000 + 0.3;
 
+/* A tap on the CTA both fires onClick AND triggers its own hover/focus
+   ripple — the "Enter Site" wave (RippleText, 10 chars × 26ms stagger +
+   360ms transition, the arrow one step further out) and the hairline
+   underline (.intro-rule::after, 500ms flat). Calling proceed() straight
+   from that same click cut the crossfade in on top of whichever of those
+   was still travelling. This is the slower of the two (the arrow, at
+   10*26 + 360 = 620ms) plus a small buffer, so the tap's own feedback
+   always finishes before the veil starts lifting. */
+const PROCEED_DELAY_MS = 650;
+
+// Ideal size from the existing clamp(), read back once mounted rather
+// than assumed, so a later resize recovers the true ceiling instead of
+// ratcheting down from whatever this effect last applied — same reason
+// About.tsx's quote-fit reads its ceiling from a formula, not from a
+// previous run's own output.
+const VERSE_MIN_PX = 24;
+const VERSE_MAX_PX = 42;
+const VERSE_VW = 3;
+const verseIdealPx = (viewportWidth: number) =>
+  Math.min(VERSE_MAX_PX, Math.max(VERSE_MIN_PX, (viewportWidth * VERSE_VW) / 100));
+
 export default function ScriptureIntro() {
   const [phase, setPhase] = useState<"writing" | "leaving" | "done">("writing");
   const [ready, setReady] = useState(false);
+  const [verseSize, setVerseSize] = useState<number | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  // phase stays "writing" through the tap's own PROCEED_DELAY_MS hold, so
+  // this is what stops a second tap or Enter press in that window from
+  // scheduling a second transition.
+  const proceedingRef = useRef(false);
+
+  /* Both lines share one font-size (the clamp() below), fixed to nowrap
+     at md+ so the verse holds its authored two-line break. Confirmed live
+     in Safari (not Chrome, same window): the longer line (line 1) can
+     render wide enough there to overflow the figure — .scripture-intro
+     is overflow-y:auto, which the CSS spec computes overflow-x to auto
+     too rather than leaving it visible, so an overflowing nowrap line is
+     pushed out of view rather than visibly spilling, reading as the verse
+     cutting off mid-sentence. Same canvas-measured fit as About.tsx's
+     quote: shrink the shared size only as far as the wider of the two
+     lines actually needs, so this still hits the full clamp() ceiling
+     everywhere it already fit. */
+  useEffect(() => {
+    const figure = document.querySelector<HTMLElement>(".scripture-intro figure");
+    if (!figure) return;
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d")!;
+
+    const fit = () => {
+      const p = figure.querySelector<HTMLElement>(".scripture-verse");
+      if (!p) return;
+      const ideal = verseIdealPx(window.innerWidth);
+      if (!ideal) return;
+      // Below md, each line already wraps naturally (the nowrap class on
+      // .block above is md: and up) — nothing here can overflow, so the
+      // shrink this effect exists for would only needlessly undersize the
+      // clamp() ceiling on a phone that was never at risk.
+      if (!window.matchMedia("(min-width: 768px)").matches) {
+        setVerseSize(ideal);
+        return;
+      }
+      const cs = getComputedStyle(p);
+      // px-8 either side is part of the box being measured against
+      // (clientWidth already excludes padding), so no separate margin
+      // needed here.
+      const containerWidth = figure.clientWidth;
+      if (!containerWidth) return;
+
+      ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${ideal}px ${cs.fontFamily}`;
+      const widest = Math.max(
+        ...VERSE_LINES.map((line) => ctx.measureText(line).width),
+      );
+      setVerseSize(
+        widest > containerWidth ? (ideal * containerWidth * 0.98) / widest : ideal,
+      );
+    };
+
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(figure);
+    document.fonts?.ready?.then(fit).catch(() => {});
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     // The layout script only sets .intro-active when motion is allowed.
@@ -55,7 +134,21 @@ export default function ScriptureIntro() {
     // The verse no longer times out into the hero. Once it has finished
     // writing, a CTA fades in and the intro simply waits — the reader
     // decides when to move on.
-    const arm = setTimeout(() => setReady(true), FADE_START_MS);
+    //
+    // This moment — the char-by-char reveal already done, the CTA just
+    // sitting there waiting for a tap — is also the best point on the
+    // whole page for anything else heavy to quietly initialize: the
+    // reveal that needed the main thread to itself is finished, and the
+    // reader hasn't dismissed yet, so nothing is competing with whatever
+    // runs here. See lib/use-after-intro, which every below-the-fold
+    // section's own GSAP setup waits on — it used to wait for
+    // intro-active to be REMOVED instead, which is the moment the reader
+    // taps through and immediately starts scrolling: the single worst
+    // time to run it, not the best.
+    const arm = setTimeout(() => {
+      setReady(true);
+      window.dispatchEvent(new Event("intro-settled"));
+    }, FADE_START_MS);
 
     return () => {
       clearTimeout(arm);
@@ -64,14 +157,20 @@ export default function ScriptureIntro() {
   }, []);
 
   /* Hand over to the hero: unlock scroll and fire the hero's staggered
-     rise in the same frame the veil starts lifting. */
+     rise in the same frame the veil starts lifting — held off by
+     PROCEED_DELAY_MS so the tap's own ripple/hairline feedback finishes
+     first instead of being cut off by the crossfade starting underneath
+     it (see PROCEED_DELAY_MS above). */
   const proceed = useCallback(() => {
-    if (phase !== "writing") return;
-    const root = document.documentElement;
-    root.classList.remove("intro-active");
-    root.classList.add("hero-revealing");
-    setPhase("leaving");
-    window.setTimeout(() => setPhase("done"), FADE_MS);
+    if (phase !== "writing" || proceedingRef.current) return;
+    proceedingRef.current = true;
+    window.setTimeout(() => {
+      const root = document.documentElement;
+      root.classList.remove("intro-active");
+      root.classList.add("hero-revealing");
+      setPhase("leaving");
+      window.setTimeout(() => setPhase("done"), FADE_MS);
+    }, PROCEED_DELAY_MS);
   }, [phase]);
 
   /* Enter/Space work as well as the click, and Escape skips ahead. */
@@ -110,7 +209,13 @@ export default function ScriptureIntro() {
         <blockquote>
           <p
             className="scripture-verse"
-            style={{ fontSize: "clamp(24px, 3vw, 42px)", lineHeight: 1.45 }}
+            style={{
+              fontSize:
+                verseSize != null
+                  ? `${verseSize}px`
+                  : `clamp(${VERSE_MIN_PX}px, ${VERSE_VW}vw, ${VERSE_MAX_PX}px)`,
+              lineHeight: 1.45,
+            }}
           >
             <span className="sr-only">{VERSE}</span>
             <span aria-hidden>

@@ -31,7 +31,27 @@ const introGate = `try{if(location.pathname==="/"&&!matchMedia("(prefers-reduced
 // first paint so the server HTML never shows at the top on its way down to
 // the target. ScrollReset reveals once the layout has settled; the timeout
 // is a safety net if that never runs.
-try{if(location.hash){var d=document.documentElement;d.style.visibility="hidden";setTimeout(function(){d.style.visibility=""},1500)}}catch(e){}`;
+try{if(location.hash){var d=document.documentElement;d.style.visibility="hidden";setTimeout(function(){d.style.visibility=""},1500)}}catch(e){}
+// WebKit's compositor is measurably more expensive than Blink's for
+// stacked filters, backdrop-filter and mask-image — the effects this
+// site leans on hardest. Stamped pre-paint so the lighter variants are
+// what actually gets composited first, never a swap after.
+// navigator.vendor rather than a UA string: "Apple Computer, Inc." is
+// Safari AND every iOS browser (all WebKit, all the same compositor),
+// while Chrome/Edge on macOS report "Google Inc." — which is exactly the
+// split wanted here. Two classes on purpose: wk is the plain fact, wk-fx
+// gates the reductions, so wk-fx can be toggled off in Web Inspector to
+// A/B a Timeline trace without a rebuild.
+try{if(navigator.vendor==="Apple Computer, Inc."){document.documentElement.classList.add("wk","wk-fx")}}catch(e){}
+// No cursor gate here any more. Removing cursor-off pre-paint killed the
+// load flash, but it also suppressed the native cursor during the window
+// before the custom one knows where the pointer is — leaving NO cursor at
+// all, which on WebKit shows as the OS arrow drawn and never redrawn away.
+// CustomCursor now owns this as a single tie: cursor-off is removed on the
+// first pointermove and restored when the pointer leaves, so the suppression
+// is active exactly while the custom cursor is drawn and never otherwise.
+// The class ships on <html> from the server, so the state before any pointer
+// input is a normal arrow rather than nothing.`;
 
 export default function RootLayout({
   children,
@@ -41,7 +61,12 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${primarySans.variable} ${displaySerif.variable} ${scriptureFace.variable} ${referenceFace.variable} ${imperialAramaic.variable} antialiased`}
+      // cursor-off ships in the server HTML and the pre-paint script above
+      // removes it when the custom cursor applies. Shipped ON so that a
+      // visitor whose JS never runs keeps a real cursor; removed before
+      // first paint otherwise, so there is never a frame with the OS
+      // arrow drawn over the page for WebKit to then fail to redraw.
+      className={`cursor-off ${primarySans.variable} ${displaySerif.variable} ${scriptureFace.variable} ${referenceFace.variable} ${imperialAramaic.variable} antialiased`}
       suppressHydrationWarning
     >
       <head>

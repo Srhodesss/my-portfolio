@@ -36,6 +36,50 @@ export type Project = {
 
 export const projects: Project[] = [
   {
+    slug: "tv-tech-info-screen",
+    title: "Tech Info Screen",
+    impact:
+      "A self-service technical details screen that gives Hayu CTV users everything support needs to resolve an issue, without the back-and-forth.",
+    tags: [
+      "Product Management",
+      "Product Design",
+      "User Research",
+      "Competitor Analysis",
+      "Analytics",
+      "Cross Team Delivery",
+    ],
+    cover: {
+      src: "/work/tv-tech-info-screen/hero.jpg",
+      alt: "The Hayu Tech Info Screen on a connected TV",
+    },
+    sections: [
+      {
+        heading: "Challenge",
+        body: [
+          "A playback or account error on a TV leaves users no quick way to give support what it needs — device, app version, error codes — so tickets stretch into back and forth over a remote.",
+        ],
+      },
+      {
+        heading: "Context",
+        body: [
+          "Built at NBCUniversal for Hayu's connected-TV app. System Information is a self-service page under My Account showing the technical data support asks for, with a QR code to the help centre, so a user can photograph it and go.",
+        ],
+      },
+      {
+        heading: "My role",
+        body: [
+          "Designer and product manager. I ran competitor analysis and moderated interviews in three markets, then owned delivery across the mobile, TV and backend teams.",
+        ],
+      },
+      {
+        heading: "Outcome",
+        body: [
+          "Shipped to the Hayu DTC app across connected TV devices — giving support a direct line to the technical detail they need, and giving users a faster way to get an issue resolved themselves.",
+        ],
+      },
+    ],
+  },
+  {
     slug: "interax",
     title: "Interax",
     impact:

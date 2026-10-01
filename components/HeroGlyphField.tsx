@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import HebrewWatermark from "@/components/HebrewWatermark";
+import { useAfterIntro } from "@/lib/use-after-intro";
+import { useStableVh } from "@/lib/use-stable-vh";
 
 /**
  * Interactive shell around the shared Hebrew watermark, used by the hero
@@ -53,13 +55,84 @@ export default function HeroGlyphField({
   variant?: "hero" | "closing";
 } = {}) {
   const fieldRef = useRef<HTMLDivElement>(null);
+  const isHero = variant === "hero";
+
+  /* The hero's copy of the watermark (rows repeated 8x each for the
+     seamless drift loop — on the order of 800 DOM nodes) used to mount
+     immediately and unconditionally, at the exact moment the scripture
+     intro overlay is building an IDENTICAL second copy of its own, on top
+     of ~130 individually-delayed character animations already running.
+     On a phone's CPU that's enough simultaneous main-thread work to
+     visibly stall mid-reveal: characters that should land one at a time
+     catch up in a single jump once the thread frees up, and the "Enter
+     Site" CTA's own setTimeout can be delayed well past where a reader
+     is still waiting for it — confirmed live, not assumed, once it was
+     reported. Holding the hero's copy back until the intro is actually
+     gone means only one ~800-node watermark exists during the intro's
+     critical first few seconds, on the device where that margin matters.
+     The closing variant has no intro competing with it and stays ready
+     immediately, same as it always has. Desktop never had this reported
+     and the flip happens in a layout effect, before the first paint, so
+     it never sees so much as a flash — this only changes what a phone
+     waits for. See lib/use-after-intro — Skills and WorkSequence gate
+     their own heavy setup on the exact same signal, for the same reason. */
+  const afterIntro = useAfterIntro();
+  const ready = !isHero || afterIntro;
+  const vhRef = useStableVh();
+
+  /* Sits the mask's fade exactly on the name's own baseline instead of a
+     fixed distance from the section — the verses used to stop short,
+     leaving a gap before "SINAI Rhodes" on some viewports and running
+     past it on others, because a flat pixel guess can't track where the
+     name actually lands as it reflows. Same technique the closing
+     section already uses to align the mountain to the name's baseline
+     (--ms-foot in MountSinai.tsx: canvas-measured, not assumed) — see
+     .hebrew-mask-fade in globals.css for the matching fade shape, kept
+     in sync with .ms-field .ms-hebrew's so both sections use the same
+     rule rather than two independently-drifting guesses. */
+  useEffect(() => {
+    if (!isHero) return;
+    const field = fieldRef.current;
+    if (!field) return;
+    const section = field.closest<HTMLElement>("#hero");
+    const span = section?.querySelector<HTMLElement>("h1 span span");
+    if (!section || !span) return;
+    const placeFoot = () => {
+      const ctx = document.createElement("canvas").getContext("2d");
+      if (!ctx) return;
+      const cs = getComputedStyle(span);
+      ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+      const m = ctx.measureText("SINAI");
+      const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize);
+      const half =
+        (lh - (m.fontBoundingBoxAscent + m.fontBoundingBoxDescent)) / 2;
+      const baseline =
+        span.getBoundingClientRect().top + half + m.fontBoundingBoxAscent;
+      const foot = section.getBoundingClientRect().bottom - baseline;
+      if (Number.isFinite(foot)) {
+        field.style.setProperty("--hero-foot", `${Math.round(foot)}px`);
+      }
+    };
+    placeFoot();
+    document.fonts?.ready.then(placeFoot);
+    window.addEventListener("resize", placeFoot);
+    return () => window.removeEventListener("resize", placeFoot);
+  }, [isHero]);
 
   useEffect(() => {
+    if (!ready) return;
     const field = fieldRef.current!;
-    const isHero = variant === "hero";
     const reduced = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
+    const isMobile = window.matchMedia("(max-width: 767px)").matches;
+    // Repulsion, proximity glow and the sequential shimmer all exist to
+    // read as alive under a cursor that, on touch, is never there — same
+    // gate the custom cursor and the pill glow already use. Left ungated
+    // here, the shimmer loop in particular runs indefinitely, building
+    // and tearing down character spans word after word for as long as
+    // the hero is mounted, whether or not anything is watching it.
+    const fine = window.matchMedia("(pointer: fine)").matches;
 
     const cleanups: (() => void)[] = [];
 
@@ -102,9 +175,13 @@ export default function HeroGlyphField({
       let fadeRaf = 0;
       const applyFade = () => {
         fadeRaf = 0;
+        // Mobile reads a debounced height instead of the live one — see
+        // lib/use-stable-vh: iOS Chrome/Safari's toolbar show/hide changes
+        // window.innerHeight mid-gesture, right as this fade runs.
+        const vh = isMobile ? vhRef.current : window.innerHeight;
         const o = Math.max(
           0,
-          Math.min(1, 1 - window.scrollY / (window.innerHeight * FADE_DISTANCE)),
+          Math.min(1, 1 - window.scrollY / (vh * FADE_DISTANCE)),
         );
         field.style.opacity = String(o);
         field.style.visibility = o === 0 ? "hidden" : "visible";
@@ -122,17 +199,64 @@ export default function HeroGlyphField({
       );
     }
 
-    if (!reduced) {
+    /* Default is now what ?glyph=nohint proved smooth: the repulsion runs
+       and the eased return stays, but the 1,472 will-change hints do not
+       ship. They are opt-in via ?glyph=hint (the old default) purely so
+       the two can still be compared.
+
+         (default)      repulsion + eased return, no promotion hints
+         ?glyph=hint    ...plus will-change on every word (old default)
+         ?glyph=nohint  repulsion only — no transition, no hints
+         ?glyph=off     effect never binds at all
+
+       Decided at load, deliberately: toggling these on a live page
+       mutates ~1,500 elements underneath a ScrollTrigger pin that
+       measured its bounds on load and is not told to re-measure, which is
+       its own artefact and not what is being tested. */
+    const glyphParam = new URLSearchParams(window.location.search).get("glyph");
+    if (!reduced && fine && glyphParam !== "off") {
+      // Marks this field as the one that actually gets transforms written
+      // to its words, so .glyph-item's transition can be scoped to it —
+      // see the rule in globals.css for why that matters (every other
+      // watermark copy on the page carried the same styling for a
+      // transform it never receives).
+      if (glyphParam !== "nohint") {
+        field.classList.add("glyph-live");
+        cleanups.push(() => field.classList.remove("glyph-live"));
+      }
+      if (glyphParam === "hint") {
+        field.classList.add("glyph-hint");
+        cleanups.push(() => field.classList.remove("glyph-hint"));
+      }
       const rows = Array.from(field.querySelectorAll<HTMLElement>(".wm-row"));
       const words = Array.from(
         field.querySelectorAll<HTMLElement>(".glyph-item"),
       );
+      // closest(), not parentElement: the words are no longer direct
+      // children of the row. HebrewWatermark wraps each tiling repeat in
+      // a .wm-unit span so surplus repeats can be dropped per breakpoint,
+      // which put a level between the two — parentElement then returned
+      // the unit, indexOf gave -1, and rows[-1].offsetTop threw during
+      // measure(), taking the whole page down with it. Addressing the row
+      // by what it IS rather than by depth survives the next wrapper too.
       const wordRow = words.map((el) =>
-        rows.indexOf(el.parentElement as HTMLElement),
+        rows.indexOf(el.closest(".wm-row") as HTMLElement),
       );
+      // The row math below indexes rows[] by these, so a word that found
+      // no row would reintroduce exactly the same crash.
+      if (wordRow.some((i) => i < 0)) {
+        console.warn("HeroGlyphField: glyph outside .wm-row; skipping field");
+        return;
+      }
 
       /* --- Repulsion + proximity glow -------------------------------- */
       let centers: { x: number; y: number }[] = [];
+      // Word indices grouped by row, plus each row's vertical band, so a
+      // frame can discard whole rows before touching any of their words —
+      // see apply(). Measured here rather than per frame because both
+      // only change when the layout does.
+      let rowWords: number[][] = [];
+      let rowBand: { top: number; bottom: number }[] = [];
       const measure = () => {
         // The rows carry a transform (the drift animation), which makes
         // each row the words' offsetParent — so a word's offsetTop is
@@ -146,6 +270,12 @@ export default function HeroGlyphField({
             y: row.offsetTop + el.offsetTop + el.offsetHeight / 2,
           };
         });
+        rowWords = rows.map(() => []);
+        words.forEach((_, i) => rowWords[wordRow[i]]?.push(i));
+        rowBand = rows.map((row) => ({
+          top: row.offsetTop,
+          bottom: row.offsetTop + row.offsetHeight,
+        }));
       };
       measure();
       document.fonts?.ready.then(measure);
@@ -154,55 +284,82 @@ export default function HeroGlyphField({
 
       let moveRaf = 0;
       let pointer: { x: number; y: number } | null = null;
-      let anyActive = false;
+      // Indices written to last frame. Replaces the old `anyActive` flag:
+      // with rows now culled before their words are visited, "everything
+      // not in range this frame" is no longer a set the loop walks, so
+      // what was touched has to be remembered to be cleared.
+      let touched = new Set<number>();
 
-      const apply = () => {
+      /* Takes the field's rect rather than reading it: tick() already
+         needs one for its own on-screen test, and this used to take a
+         second reading of the same box in the same frame. */
+      const apply = (rect: DOMRect) => {
         moveRaf = 0;
-        const rect = field.getBoundingClientRect();
         const px = pointer ? pointer.x - rect.left : Number.NEGATIVE_INFINITY;
         const py = pointer ? pointer.y - rect.top : Number.NEGATIVE_INFINITY;
-        // Rows drift via CSS animation; fold their live offset into the
-        // word centres so the field tracks the moving text.
-        const rowShift = rows.map((row) => {
-          const t = getComputedStyle(row).transform;
-          return t === "none" ? 0 : new DOMMatrixReadOnly(t).m41;
-        });
-        let active = false;
-        for (let i = 0; i < words.length; i++) {
-          const dx = centers[i].x + rowShift[wordRow[i]] - px;
-          const dy = centers[i].y - py;
-          const d = Math.hypot(dx, dy);
-          const el = words[i];
-          if (d < RADIUS && d > 0.01) {
-            const f = (1 - d / RADIUS) ** 2 * PUSH;
-            el.style.transform = `translate(${(dx / d) * f}px, ${(dy / d) * f}px)`;
-            active = true;
-          } else if (anyActive) {
-            el.style.transform = "";
+        const next = new Set<number>();
+
+        for (let r = 0; r < rows.length; r++) {
+          const band = rowBand[r];
+          if (!band) continue;
+          /* Vertical cull, the whole point of this restructure. Nothing
+             in a row can be in reach if the row's own band is further
+             than the larger radius from the pointer, so the row's words
+             are never visited and — more to the point — its transform is
+             never resolved. This loop used to run all ~1,470 words and
+             call getComputedStyle on all 12 rows every single frame,
+             regardless of where the cursor was; in practice two or three
+             rows are ever in range. */
+          const dyBand =
+            py < band.top ? band.top - py : py > band.bottom ? py - band.bottom : 0;
+          if (dyBand > GLOW_RADIUS) continue;
+
+          // Rows drift via CSS animation; fold their live offset into the
+          // word centres so the field tracks the moving text. Only for
+          // rows that survived the cull.
+          const t = getComputedStyle(rows[r]).transform;
+          const shift = t === "none" ? 0 : new DOMMatrixReadOnly(t).m41;
+
+          for (const i of rowWords[r]) {
+            const dx = centers[i].x + shift - px;
+            const dy = centers[i].y - py;
+            const d = Math.hypot(dx, dy);
+            const el = words[i];
+            let used = false;
+            if (d < RADIUS && d > 0.01) {
+              const f = (1 - d / RADIUS) ** 2 * PUSH;
+              el.style.transform = `translate(${(dx / d) * f}px, ${(dy / d) * f}px)`;
+              used = true;
+            }
+            if (d < GLOW_RADIUS) {
+              const g = 1 - d / GLOW_RADIUS;
+              el.style.color = `color-mix(in srgb, var(--scripture) ${Math.round(6 + 30 * g)}%, transparent)`;
+              el.style.textShadow = `0 0 ${Math.round(16 * g)}px rgba(243, 232, 179, ${(0.38 * g).toFixed(2)})`;
+              used = true;
+            }
+            if (used) next.add(i);
           }
-          if (d < GLOW_RADIUS) {
-            const g = 1 - d / GLOW_RADIUS;
-            el.style.color = `color-mix(in srgb, var(--scripture) ${Math.round(6 + 30 * g)}%, transparent)`;
-            el.style.textShadow = `0 0 ${Math.round(16 * g)}px rgba(243, 232, 179, ${(0.38 * g).toFixed(2)})`;
-            active = true;
-          } else if (anyActive && el.style.color) {
+        }
+
+        // Clear only what actually carries a style, instead of assigning
+        // "" across every word the cursor is not near. color/textShadow
+        // are paint properties, so those writes were never free.
+        for (const i of touched) {
+          if (next.has(i)) continue;
+          const el = words[i];
+          el.style.transform = "";
+          if (el.style.color) {
             el.style.color = "";
             el.style.textShadow = "";
           }
         }
-        anyActive = active;
-      };
-
-      // Whether this field is on screen, asked of the field itself. It
-      // used to be a hero-specific scroll test, which left the closing
-      // section's copy permanently inert.
-      const offScreen = () => {
-        const r = field.getBoundingClientRect();
-        return r.bottom < 0 || r.top > window.innerHeight;
+        touched = next;
       };
 
       const onMove = (e: PointerEvent) => {
-        if (offScreen()) return;
+        // No on-screen test here any more: it cost a getBoundingClientRect
+        // on every pointermove (far more often than a frame), and tick()
+        // already refuses to apply anything while the field is off screen.
         pointer = { x: e.clientX, y: e.clientY };
       };
       const onLeave = () => {
@@ -220,9 +377,13 @@ export default function HeroGlyphField({
       // frozen against moving text until the user jiggled the cursor.
       const tick = () => {
         moveRaf = requestAnimationFrame(tick);
-        if (!pointer && !anyActive) return;
-        if (offScreen()) return;
-        apply();
+        // Nothing to do with no pointer and nothing left needing clearing.
+        if (!pointer && touched.size === 0) return;
+        // One read, handed to apply() — this and apply() used to take a
+        // separate reading of the same box in the same frame.
+        const rect = field.getBoundingClientRect();
+        if (rect.bottom < 0 || rect.top > window.innerHeight) return;
+        apply(rect);
       };
       moveRaf = requestAnimationFrame(tick);
 
@@ -279,7 +440,7 @@ export default function HeroGlyphField({
     }
 
     return () => cleanups.forEach((fn) => fn());
-  }, [variant]);
+  }, [variant, isHero, ready, vhRef]);
 
   return (
     <div
@@ -290,7 +451,7 @@ export default function HeroGlyphField({
         ref={fieldRef}
         className="hebrew-mask-fade absolute inset-0 overflow-hidden"
       >
-        <HebrewWatermark />
+        {ready && <HebrewWatermark />}
       </div>
     </div>
   );

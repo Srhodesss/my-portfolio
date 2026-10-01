@@ -19,7 +19,7 @@ import { smoothToTop } from "@/lib/section-nav";
  * two seconds.
  *
  * Fine pointers with motion allowed only — touch devices and
- * reduced-motion users keep the system cursor (the `cursor-on` class,
+ * reduced-motion users keep the system cursor (the `cursor-off` opt-out,
  * which hides the native pointer, is only ever added here).
  */
 /* The opening "Scroll" hint has no timeout. It stays up, nudging every
@@ -35,13 +35,101 @@ export default function CustomCursor() {
       !window.matchMedia("(pointer: fine)").matches ||
       window.matchMedia("(prefers-reduced-motion: reduce)").matches
     ) {
+      // The CSS hides the native cursor by default for a fine pointer with
+      // motion allowed. If that no longer holds by the time this runs (a
+      // coarse pointer attached, motion preference flipped), opt back out
+      // rather than leaving the reader with no cursor at all. This is the
+      // ONLY place anything re-adds cursor-off.
+      document.documentElement.classList.add("cursor-off");
       return;
     }
     const dot = dotRef.current!;
     const ring = ringRef.current!;
     const label = labelRef.current!;
-    document.documentElement.classList.add("cursor-on");
+    // NOTE: cursor-off is deliberately NOT cleared here. Mount is not the
+    // moment the custom cursor becomes visible — the ring sits at
+    // autoAlpha 0 until the first pointermove tells it where to draw.
+    // Clearing it here suppressed the native cursor while nothing had
+    // replaced it. setCursorShown below is the only thing that may clear
+    // it, and only at the moment the ring is actually drawn.
     gsap.set(ring, { autoAlpha: 0 });
+
+    /* ONE suppression, tied to one fact: is the custom cursor actually
+       drawn right now. Every visual state (hint, hot, open, top) is a
+       class on `ring` and layers on top of this — none of them touch the
+       native cursor, and none ever did.
+       What did leave a gap was the ring's own visibility having a
+       separate lifecycle from the suppression. The ring starts at
+       autoAlpha 0 and only becomes visible on the first pointermove, and
+       onLeave drops it back to 0 — so between load and the first move,
+       and between the pointer leaving the window and moving again inside
+       it, the native cursor was suppressed while nothing was drawn in its
+       place. Zero cursors in state, and on WebKit the OS arrow drawn
+       anyway because it had never been redrawn. Both windows now hand the
+       real cursor back instead. */
+    let cursorShown = false;
+    const setCursorShown = (shown: boolean) => {
+      if (shown === cursorShown) return;
+      cursorShown = shown;
+      document.documentElement.classList.toggle("cursor-off", !shown);
+    };
+
+    // Confirmed WebKit bug (bugs.webkit.org #14344/#53341/#101857):
+    // Safari doesn't redraw the native cursor icon on a CSS `cursor`
+    // change alone — only an actual pointer move does, unlike Chromium,
+    // which re-evaluates immediately. The CSS rule is a real,
+    // synchronous, unconditional style change the instant this effect
+    // runs, but on Safari the native cursor set at PAGE LOAD (before this
+    // ever ran) stays drawn on top of the now-hidden one until the reader
+    // actually moves the mouse — which can be well after this mounts, if
+    // they read the scripture intro without moving it and only interact
+    // by clicking "Enter Site". A synthetic mousemove forces the redraw
+    // without needing a real one. Plain MouseEvent, not PointerEvent: the
+    // ring's own onMove listener below only listens for pointermove, so
+    // this doesn't also flash the ring at a fake position before the
+    // reader's real cursor location is known. Deferred a frame so the
+    // class above has actually been style-recalculated by the time
+    // WebKit re-evaluates, rather than racing the two in the same task.
+    requestAnimationFrame(() => {
+      document.dispatchEvent(new MouseEvent("mousemove"));
+    });
+
+    /* The same WebKit redraw problem, but on scroll. Scrolling slides a
+       different element under a stationary pointer, WebKit re-evaluates
+       the cursor for it and draws the native arrow again, so the OS
+       cursor reappeared the moment the page started moving and stayed
+       until the reader jogged the mouse. Nudging it with the same
+       synthetic move keeps cursor:none honoured through the scroll.
+
+       Coalesced to one dispatch per frame, and WebKit-only: Chromium
+       re-evaluates the cursor on its own and would just be paying for a
+       pointless event. MouseEvent, not PointerEvent - onMove below
+       listens for pointermove, so this cannot move the ring to a fake
+       position. No layout is read or written here, which matters because
+       this is a scroll path. */
+    let cursorNudge = 0;
+    const keepCursorHidden = () => {
+      if (cursorNudge) return;
+      cursorNudge = requestAnimationFrame(() => {
+        cursorNudge = 0;
+        document.dispatchEvent(new MouseEvent("mousemove"));
+      });
+    };
+    const isWebKit = document.documentElement.classList.contains("wk");
+    if (isWebKit) {
+      window.addEventListener("scroll", keepCursorHidden, { passive: true });
+      /* Scroll is only one way the element under a stationary pointer
+         changes. A route change, an overlay opening, a pinned section
+         releasing, or any reflow does it too — and each one is another
+         moment WebKit re-evaluates the cursor and draws the native arrow
+         back. pointerover is the signal for exactly that event, whatever
+         caused it, so it catches the cases an enumerated list would miss.
+         Dispatching a mousemove does not itself fire pointerover, so this
+         cannot feed itself. */
+      document.addEventListener("pointerover", keepCursorHidden, {
+        passive: true,
+      });
+    }
 
     // One eased position drives the whole cursor. Short duration so it
     // still feels attached to the hand, but the dot and ring are the same
@@ -63,6 +151,7 @@ export default function CustomCursor() {
       toX(px);
       toY(py);
       gsap.to(ring, { autoAlpha: 1, duration: 0.2, overwrite: "auto" });
+      setCursorShown(true);
     };
 
     // Opening hint: the cursor says what to do — but only once the
@@ -183,22 +272,39 @@ export default function CustomCursor() {
     };
     refreshPeakRect();
     let peakRaf = 0;
+    // Scroll position the cached rect was taken at. .ms-peak is fixed in
+    // the document, so its viewport rect is a pure function of where the
+    // page is: an event at an unchanged position can only re-read the
+    // same numbers. That is the state at the very bottom of the page,
+    // where the position is clamped at its maximum while momentum and
+    // rubber-banding keep firing scroll events — this refresh and the
+    // section read below it were the last 2 forced layout reads per
+    // event measured there. Resize clears it, since the rect can move
+    // with the page standing still; so does the ms-peak-updated event,
+    // which is MountSinai saying it has repositioned the element.
+    let peakY = Number.NaN;
     const onPeakGeometryChange = () => {
       if (peakRaf) return;
+      if (window.scrollY === peakY) return;
       peakRaf = requestAnimationFrame(() => {
         peakRaf = 0;
+        peakY = window.scrollY;
         refreshPeakRect();
       });
     };
+    const onPeakGeometryInvalidated = () => {
+      peakY = Number.NaN;
+      onPeakGeometryChange();
+    };
     window.addEventListener("scroll", onPeakGeometryChange, { passive: true });
-    window.addEventListener("resize", onPeakGeometryChange);
+    window.addEventListener("resize", onPeakGeometryInvalidated);
     // The authoritative signal: MountSinai dispatches this the instant it
     // actually repositions/resizes .ms-peak (mount, resize, AND the
     // mountain image's own "load" — the case scroll/resize above can't
     // cover, since decoding isn't tied to either). Read immediately, not
     // rAF-deferred like the two above: this fires at most a few times
     // total, never on a hot path, so there's no thrash to guard against.
-    window.addEventListener("ms-peak-updated", refreshPeakRect);
+    window.addEventListener("ms-peak-updated", onPeakGeometryInvalidated);
 
     // Two checks, not one: peakRect (a plain axis-aligned box — placePeak
     // sizes .ms-peak to exactly the mountain's own measured bounding box,
@@ -253,7 +359,6 @@ export default function CustomCursor() {
         return;
       }
       ring.classList.remove("cursor-hint");
-      const yieldsToViewBubble = target?.closest(".work-panel a");
 
       // Only while the offer stands, and never over something genuinely
       // clickable (the nav keeps its own cursor).
@@ -265,12 +370,12 @@ export default function CustomCursor() {
       ring.classList.toggle("cursor-open", !!folder);
       ring.classList.toggle("cursor-top", closing);
       setLabel(folder ? "Open" : closing ? "Top" : "");
-      ring.classList.toggle("cursor-suppressed", !!yieldsToViewBubble);
     };
     stateRaf = requestAnimationFrame(syncState);
 
     const onLeave = () => {
       gsap.to(ring, { autoAlpha: 0, duration: 0.25 });
+      setCursorShown(false);
     };
 
     // Click to travel back to the top — but only while the cursor is
@@ -296,14 +401,17 @@ export default function CustomCursor() {
     window.addEventListener("pointermove", onMove, { passive: true });
     document.documentElement.addEventListener("pointerleave", onLeave);
     return () => {
-      document.documentElement.classList.remove("cursor-on");
+      document.documentElement.classList.add("cursor-off");
       window.removeEventListener("pointermove", onMove);
       document.removeEventListener("click", onClick);
       document.documentElement.removeEventListener("pointerleave", onLeave);
+      window.removeEventListener("scroll", keepCursorHidden);
+      document.removeEventListener("pointerover", keepCursorHidden);
+      cancelAnimationFrame(cursorNudge);
       window.removeEventListener("scroll", onScrolled);
       window.removeEventListener("scroll", onPeakGeometryChange);
-      window.removeEventListener("resize", onPeakGeometryChange);
-      window.removeEventListener("ms-peak-updated", refreshPeakRect);
+      window.removeEventListener("resize", onPeakGeometryInvalidated);
+      window.removeEventListener("ms-peak-updated", onPeakGeometryInvalidated);
       cancelAnimationFrame(peakRaf);
       introWatch?.disconnect();
       cancelAnimationFrame(stateRaf);

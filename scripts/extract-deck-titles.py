@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 TS = ROOT / "lib" / "case-decks.ts"
 
 SOURCES = {
+    "tv-tech-info-screen": "raw-assets/tv-tech-info-screen/project-work/TV TECH INFO SCREEN - SIGN OFF DECK REDACTED.pdf",
     "interax": "raw-assets/interax/web-ready-assets/project-work/interax-portfolio.pdf",
     "cardo": "raw-assets/cardo/project-work/Cardo - Business Report.pdf",
     "sirho-frames": "raw-assets/aid/project-work/Rhodes_Sinai_Portfolio.pdf",

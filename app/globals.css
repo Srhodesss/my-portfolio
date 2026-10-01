@@ -133,9 +133,30 @@ html.reveal-ready [data-reveal].is-in {
   background: var(--accent);
 }
 
-/* Hero glyph field: eased return for the repulsion displacement. */
-.glyph-item {
+/* Hero glyph field: eased return for the repulsion displacement.
+
+   Scoped to .glyph-live — the class HeroGlyphField adds to its OWN field
+   only when it actually binds the repulsion (fine pointer, motion
+   allowed). Unscoped, this hit every .glyph-item on the page: measured
+   live at 5,888 of them across the four watermark copies (scripture
+   intro, hero, and the closing section's resting + lit stacks), against
+   a 7,188-node document — 82% of the DOM asking the compositor to
+   promote it to its own layer, for a transform only the hero's own copy
+   is ever given, and only on a fine pointer. The other three copies
+   never move a glyph; nothing here was animating them. */
+.glyph-live .glyph-item {
   transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Split off from the transition above, and now opt-in (?glyph=hint)
+   rather than the default. Measured live at 1,472 words in the hero's
+   copy alone, and confirmed by testing: ?glyph=nohint (this rule absent,
+   the repulsion JS still running) scrolls Hero-to-About smoothly where
+   the default did not — so the per-frame JS was never the cost, the
+   promotion hints were. A transition is not a layer request; it only
+   promotes the handful of words actually mid-transition near the cursor,
+   which is the behaviour this always wanted. */
+.glyph-hint .glyph-item {
   will-change: transform;
 }
 
@@ -150,19 +171,34 @@ html.reveal-ready [data-reveal].is-in {
 /* The watermark's bottom fade is opt-in. It exists to clear a band for
    the nav bar while that bar sits across the bottom of the hero, so only
    the hero wants it: the scripture intro reads as a cut-off page with it,
-   and the closing section no longer has a bar down there at all. */
+   and the closing section no longer has a bar down there at all.
+   Used to be two independently-tuned fixed-pixel guesses (one per
+   breakpoint) at where the name would land — reliably wrong on whatever
+   viewport neither guess was measured against, stopping short and
+   leaving a gap before the name on some, running past it into the nav
+   on others. --hero-foot (HeroGlyphField.tsx) is canvas-measured against
+   the name's actual baseline instead, the same technique the closing
+   section already uses for --ms-foot — this fade shape (the 40/28/18/9/0
+   offsets) is kept identical to .ms-field .ms-hebrew's below so both
+   sections read as the same rule, not two that happen to look similar. */
 .hebrew-mask-fade {
   -webkit-mask-image: linear-gradient(
     to bottom,
     black 0%,
-    black calc(100% - 190px),
-    transparent calc(100% - 56px)
+    black calc(100% - var(--hero-foot, 0px) - 40px),
+    rgba(0, 0, 0, 0.85) calc(100% - var(--hero-foot, 0px) - 28px),
+    rgba(0, 0, 0, 0.5) calc(100% - var(--hero-foot, 0px) - 18px),
+    rgba(0, 0, 0, 0.15) calc(100% - var(--hero-foot, 0px) - 9px),
+    transparent calc(100% - var(--hero-foot, 0px))
   );
   mask-image: linear-gradient(
     to bottom,
     black 0%,
-    black calc(100% - 190px),
-    transparent calc(100% - 56px)
+    black calc(100% - var(--hero-foot, 0px) - 40px),
+    rgba(0, 0, 0, 0.85) calc(100% - var(--hero-foot, 0px) - 28px),
+    rgba(0, 0, 0, 0.5) calc(100% - var(--hero-foot, 0px) - 18px),
+    rgba(0, 0, 0, 0.15) calc(100% - var(--hero-foot, 0px) - 9px),
+    transparent calc(100% - var(--hero-foot, 0px))
   );
 }
 
@@ -204,6 +240,104 @@ html.reveal-ready [data-reveal].is-in {
   }
 }
 
+/* Surplus tiling units, dropped on narrower viewports — see
+   HALF_MIN_CHARS in HebrewWatermark.tsx for why one repeat count can't
+   serve every width, and why this is resolved here rather than in JS
+   (both copies of the watermark must resize in the same frame or the
+   intro-to-hero crossfade slips).
+   Hidden by class, never by :nth-child: the same indices then vanish
+   from both halves of a row, so the halves stay identical and the ±50%
+   drift still lands on an exact copy. The wm-u2 rule below also matches
+   at the narrow breakpoint, so wm-u1 only needs to name itself. */
+.wm-unit {
+  display: inline;
+  /* pre, so the space that ends each unit survives at the END of the row
+     too. A trailing space in an inline formatting context collapses
+     away, which made the second half of every row exactly one space
+     narrower than the first — measured 8-9px on every row. translateX
+     moves by half the row's TOTAL width, so the seam landed ~4.5px off
+     its own repeat. Pre-existing (the old markup omitted the space after
+     the last word, producing the same asymmetry); cheap to close here
+     now that units are addressable. */
+  white-space: pre;
+}
+
+@media (max-width: 767px) {
+  .wm-unit.wm-u2 {
+    display: none;
+  }
+}
+
+@media (max-width: 479px) {
+  .wm-unit.wm-u1 {
+    display: none;
+  }
+}
+
+/* The closing section's verses hold still. That is the design — Closing.tsx
+   describes this field as the one that "holds still ... found by the light
+   rather than pushed by it", against the hero's, which parts around the
+   cursor. The drift there was contradicting its own section.
+
+   It was also, measured, the cost. A Safari trace parked on the bottom
+   hero with zero scroll showed Composite firing continuously at ~90-100ms
+   intervals; freezing these twelve rows and nothing else dropped that to
+   two Composite bars in five seconds, with Layout/JS ticks going from
+   ~90-100ms apart to ~400-500ms. Everything else tried against this
+   section — group-opacity isolation, the verse-fade mask, the torch's SVG
+   filter, layer promotion — moved it by nothing measurable.
+
+   paused, not `animation: none`: none resets the transform to the base
+   value and stacks every row at the same offset, where paused holds each
+   one wherever its own negative animation-delay put it (see
+   HebrewWatermark.tsx), keeping the staggered texture exactly as it
+   looks today. The hero and the scripture intro are untouched and still
+   drift. */
+.ms-field {
+  /* How much slower than the hero's drift this section's moving rows run.
+     Worth knowing which of the two dials here is the expensive one: a
+     transform animation costs the same per frame whatever its speed, so
+     SPEED IS FREE and only the ROW COUNT below is not. The earlier pass
+     cut both at once (12 rows -> 6, and 3x slower) and overshot into
+     reading static; the row count is what bought the performance, so it
+     stays at 6 and this comes back up. 3 -> 1.5 doubles the apparent
+     motion at identical cost: 210-309s per cycle against the hero's
+     140-206s. Turn this down toward 1 for more life, still for free. */
+  --wm-slow: 1.5;
+}
+
+.ms-field .wm-row {
+  animation-play-state: paused;
+}
+
+/* ...except every third one, which keeps moving. A full freeze measured
+   well (Composite went from continuous to two bars in five seconds) but
+   read as dead rather than calm, which is not what Closing.tsx is asking
+   for — "holds still" there means unhurried, not inert.
+   Every third row rather than every second: 3n+1 lands on rows 1, 4, 7
+   and 10, which is a third of the animated area, spreads the movement
+   through the field instead of banding it, and — because direction
+   alternates on the row index — still gives two rows drifting each way,
+   so the field counter-moves against itself rather than sliding. */
+.ms-field .wm-row:nth-child(2n + 1) {
+  animation-play-state: running;
+}
+
+/* Out-of-view sections stop paying for their own decoration. See
+   AnimationGate.tsx for the trace this came from: 67 concurrent infinite
+   animations at the bottom of the page, 30 of them on content that is
+   off screen, keeping the compositor busy at a steady ~24% CPU with
+   nothing scrolling and nothing visibly moving.
+   Scoped to these three decorative classes only — a blanket
+   `.anim-idle *` would also freeze entrance and state transitions, which
+   are exactly the animations that need to be mid-flight when a section
+   arrives. */
+.anim-idle .wm-drift-l,
+.anim-idle .wm-drift-r,
+.anim-idle .skill-shine {
+  animation-play-state: paused;
+}
+
 .wm-drift-l {
   animation-name: wm-drift-left;
   animation-timing-function: linear;
@@ -237,20 +371,59 @@ html.reveal-ready [data-reveal].is-in {
   aspect-ratio: 6 / 5;
   perspective: 1100px;
   cursor: pointer;
-  /* Layered elevation: contact shadow, mid lift, ambient spread, plus a
-     faint warm bloom so it separates from the wordmark behind it. */
+  /* A split that moved the transform to a child element (.folder-spring)
+     was tried here, to stop WebKit re-rasterising this blur every
+     animated frame — it made the glow stop rendering on real Safari even
+     at rest, for a reason not pinned down (isolation:isolate didn't fix
+     it either). Reverted to this single element, the last confirmed-
+     working state, until there's an actual mechanism identified for the
+     Safari bug rather than another guess. The re-rasterise cost this was
+     addressing is real and still open. */
+  /* The filter lives on .folder-back now, NOT here — see below. */
+  will-change: transform;
+}
+
+/* Deliberate mobile-only removal, not a bug to fix later: this filter is
+   the confirmed rendering cost behind the folder's scroll-in judder
+   (WebKit re-rasterises all 5 stacked drop-shadows on every frame the
+   folder's own transform changes), and the Safari-specific bug that broke
+   it visually on this element is still unresolved anyway. Same `pointer`
+   gate already used in JS throughout this file (see the proximity glow
+   and folder-spring-hover effects), expressed as its CSS-native
+   equivalent since this is a static property, not something JS toggles.
+   Desktop (pointer: fine) is untouched — full filter, unchanged. */
+@media (pointer: coarse) {
+  .folder-back {
+    filter: none;
+  }
+}
+
+/* The glow lives here rather than on .work-folder, and the two bugs that
+   kept trading places are why.
+
+   .work-folder contains the sheets. A filtered element paints its whole
+   subtree through a region derived from its own box, so with the filter
+   up there the sheets were inside it — and on hover they rise ~45px above
+   that box (measured), which is where WebKit clipped their tops. Removing
+   the filter fixed the clipping and killed the glow; restoring it did the
+   reverse. They were never really two bugs, just one element doing both
+   jobs.
+
+   .folder-back is a SIBLING of .folder-docs, not an ancestor, so the
+   sheets are no longer in any filtered subtree and cannot be clipped by
+   one — while the shadow silhouette is unchanged, because .folder-back
+   (inset 7% 0 0 0) already is the folder's outline: .folder-front is the
+   bottom 80% and sits inside it, and at rest the sheets do too. */
+.folder-back {
+  position: absolute;
+  inset: 7% 0 0 0;
+  border-radius: clamp(14px, 3.6vw, 22px);
   filter:
     drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5))
     drop-shadow(0 14px 22px rgba(0, 0, 0, 0.45))
     drop-shadow(0 34px 60px rgba(0, 0, 0, 0.4))
     drop-shadow(0 10px 26px rgba(255, 107, 53, 0.34))
     drop-shadow(0 24px 76px rgba(255, 107, 53, 0.26));
-}
-
-.folder-back {
-  position: absolute;
-  inset: 7% 0 0 0;
-  border-radius: clamp(14px, 3.6vw, 22px);
   /* Matte: shallow, low-contrast gradient — diffuse, not glossy. */
   background: linear-gradient(178deg, #c84a19 0%, #b04113 100%);
 }
@@ -392,11 +565,28 @@ html.reveal-ready [data-reveal].is-in {
 }
 
 /* Site-wide custom cursor: dot locked to the pointer, thin accent ring
-   easing behind. `cursor-on` (added only for fine pointers with motion
-   allowed) hides the native pointer. */
-html.cursor-on,
-html.cursor-on * {
-  cursor: none !important;
+   easing behind.
+
+   Hiding the native pointer is now the DEFAULT for a fine pointer with
+   motion allowed, expressed entirely in this media query, and `cursor-off`
+   is the only way back. That inversion is the point: the old rule was
+   `html.cursor-on *`, so the native cursor returned any time that class
+   was missing — during the gap before React hydrated, and in principle any
+   time component-level code dropped it. Hiding can no longer be "unset",
+   because it is not switched on by anything; it is the absence of an
+   opt-out. The server ships `cursor-off` on <html> and the pre-paint
+   script in layout.tsx removes it, so a no-JS visitor keeps a real cursor
+   instead of none at all.
+
+   Both selectors are needed: the first covers the root's own area, the
+   second every element. There is no shadow DOM or iframe on this site
+   (checked), so `*` genuinely reaches everything the pointer can be
+   over. */
+@media (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  html:not(.cursor-off),
+  html:not(.cursor-off) * {
+    cursor: none !important;
+  }
 }
 
 .site-cursor-ring {
@@ -476,38 +666,13 @@ html.cursor-on * {
   scale: 0;
 }
 
-.site-cursor-ring.cursor-suppressed {
-  opacity: 0 !important;
-}
-
-/* Morphing custom cursor over the gallery cards (shown/positioned by
-   GSAP; hidden until a card is hovered). */
-.work-cursor {
-  position: fixed;
-  top: -36px;
-  left: -36px;
-  z-index: 60;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 72px;
-  height: 72px;
-  border: 1px solid var(--accent);
-  border-radius: 9999px;
-  background: rgba(10, 10, 10, 0.55);
-  backdrop-filter: blur(4px);
-  color: var(--accent);
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  pointer-events: none;
-  opacity: 0;
-}
-
-/* Native cursor hides over cards only once the magnetic JS is active. */
-.magnetic-on .work-panel a {
-  cursor: none;
-}
+/* Removed: .site-cursor-ring.cursor-suppressed, .work-cursor and
+   .magnetic-on. The suppressed state hid the site cursor so a per-card
+   .work-cursor could take over, but that cursor lost its driver when the
+   gallery components were deleted and .work-panel appears in no markup —
+   so the rule could only ever have hidden the one cursor on screen in
+   favour of nothing, which is precisely the "neither is showing" gap
+   being chased here. Deleted rather than left armed. */
 
 @media (prefers-reduced-motion: reduce) {
   .folder-doc,
@@ -533,10 +698,27 @@ html.cursor-on * {
    distributed by height while the pill scaled with width. */
 .pills-stage {
   --pill-size: clamp(20px, 2.6vw, 40px);
+  /* The master scrub timeline (WorkSequence) doesn't touch any of this
+     until the reader actually scrolls into it — by design, the whole
+     point of a scrubbed ScrollTrigger over a fixed-duration one. But a
+     browser will often defer promoting an element to its own GPU layer
+     until the FIRST time its transform/opacity actually changes, and
+     with pills-stage, projects-stage, work-folder, seq-blackout and
+     seq-caption all getting touched in the same scrub window, that's
+     several layer promotions landing in the same few frames — a real,
+     one-time cost that reads as a hitch specifically on first scroll
+     into the section, gone on every scroll after. will-change tells the
+     browser to promote ahead of time instead of reactively. */
+  will-change: opacity;
 }
 
 .pill-row {
   gap: calc(var(--pill-size) * 0.62);
+  will-change: transform, opacity;
+}
+
+.pills-heading {
+  will-change: transform, opacity;
 }
 
 .pill-stack {
@@ -566,7 +748,13 @@ html.cursor-on * {
   font-size: var(--pill-size);
   color: var(--text-secondary);
   cursor: pointer;
-  touch-action: none;
+  /* touch-action: none used to sit here for no documented reason — on a
+     fine pointer it does nothing (no touch input exists to act on), and
+     on a phone it told the browser to withhold its own panning from
+     anywhere a finger landed on a pill, which fills much of the row.
+     Default `auto` lets a scroll started on a pill scroll like anywhere
+     else, which matters more now that pills carry no tap behaviour of
+     their own on touch (see WorkSequence's click effect). */
   user-select: none;
   box-shadow:
     0 0 calc(14px + var(--glow) * 26px)
@@ -596,6 +784,30 @@ html.cursor-on * {
 /* Without JS or with reduced motion neither class appears, the overlay */
 /* stays hidden and the hero shows immediately.                        */
 /* ------------------------------------------------------------------ */
+
+/* The overlay locks the PAGE's scroll (html.intro-active below), but
+   carries none of its own — if the verse, attribution and CTA together
+   run taller than one real device's actual visible height (a phone's
+   viewport is shorter than a desktop's to begin with, and Mobile
+   Safari's own chrome can eat further into it in ways a fixed-size
+   desktop check never has to account for), the centred flex column
+   simply overflows the fixed box on both ends with no way to reach
+   whatever falls outside it — including the CTA, the only way off this
+   screen. `overflow-y: auto` gives this box its own scroll regardless of
+   the page-level lock, so the content is reachable even in that case.
+   `safe center` is the part that actually matters here: plain `center`
+   on a container whose content overflows still centres it — meaning the
+   content extends equally past BOTH edges of the box, and the box's own
+   default scroll position starts you already past the top of it, with no
+   way to scroll back up to see where the verse begins. `safe` falls back
+   to start alignment the moment content no longer fits, so this box
+   always opens on the top of the verse and scrolls down from there,
+   rather than opening already past it. */
+.scripture-intro {
+  overflow-y: auto;
+  align-items: safe center;
+}
+
 html.intro-active {
   overflow: hidden;
 }
@@ -676,6 +888,30 @@ html:not(.intro-active) .scripture-intro:not([data-mounted]) {
 .intro-char {
   display: inline-block;
   animation: char-illuminate 1.6s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+
+/* Mobile keeps the same per-character stagger and timing but drops the
+   colour channel: color is a paint property, not a composite one, so
+   every one of these ~130 spans was forcing a paint each time it moved
+   through 30%, on top of the opacity/transform work — on the very first
+   screen the reader sees, before anything is warmed up. Opacity + rise
+   alone carries the "written on" read; the warm-to-white settle was the
+   layer riding on top of it. Desktop is untouched. */
+@media (max-width: 767px) {
+  @keyframes char-illuminate-mobile {
+    from {
+      opacity: 0;
+      transform: translateY(0.35em);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .intro-char {
+    color: var(--text);
+    animation-name: char-illuminate-mobile;
+  }
 }
 
 @keyframes soft-fade {
@@ -833,6 +1069,21 @@ html.reveal-ready [data-reveal-text] .rt-inner {
 html.reveal-ready [data-reveal-text].is-in .rt-inner {
   opacity: 1;
   transform: translateY(0);
+}
+
+/* Every word's own transition-delay is written inline by RevealText (it
+   has to be — the value is per-word), and an inline style outranks a
+   plain stylesheet rule regardless of media query, so this is the one
+   place in the mobile simplification pass that needs !important to win:
+   there's no other way to zero it from CSS alone. The words still rise
+   the same way, together instead of rippling word by word — one thing
+   settling into place instead of a sequence of them, which is the part
+   of "staggering" that's decoration on top of the reveal rather than the
+   reveal itself. Desktop keeps its ripple untouched. */
+@media (max-width: 767px) {
+  html.reveal-ready [data-reveal-text] .rt-inner {
+    transition-delay: 0s !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1159,6 +1410,14 @@ html.reveal-ready .cs-stagger > [data-reveal]:nth-child(6) { transition-delay: 4
 .seq-blackout {
   opacity: 0;
   visibility: hidden;
+  will-change: opacity;
+}
+
+/* See the comment on .pills-stage above — same first-scroll layer-
+   promotion reasoning applies to the rest of the scrub timeline. */
+.projects-stage,
+.seq-caption {
+  will-change: opacity;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1362,11 +1621,20 @@ html.reveal-ready .cs-stagger > [data-reveal]:nth-child(6) { transition-delay: 4
 /* The whole pill turns: perspective sits on the slot, and the card itself
    rotates so the border, glow and ground all travel with the text. */
 .pill-slot {
+  -webkit-perspective: 900px;
   perspective: 900px;
 }
 
 .pill {
   position: relative;
+  /* backface-visibility below already carries both prefixes; this was
+     the one still missing. Nested preserve-3d (.pill here, .pill-inner
+     below) is exactly where WebKit has historically needed the prefix to
+     keep a 3D context from flattening — without it, backface-visibility
+     on the faces further down can't correctly tell which one is actually
+     facing the viewer once the parent has rotated, which reads as the
+     front face's text reappearing upside-down instead of hidden. */
+  -webkit-transform-style: preserve-3d;
   transform-style: preserve-3d;
   /* Longer, and on a gentler curve. cubic-bezier(0.22, 1, 0.36, 1) is
      an aggressive out-ease: almost all of the travel happens in the
@@ -1382,11 +1650,13 @@ html.reveal-ready .cs-stagger > [data-reveal]:nth-child(6) { transition-delay: 4
 }
 
 .pill.pill-flipped {
+  -webkit-transform: rotateX(180deg);
   transform: rotateX(180deg);
 }
 
 .pill-inner {
   display: grid;
+  -webkit-transform-style: preserve-3d;
   transform-style: preserve-3d;
 }
 
@@ -1413,6 +1683,23 @@ html.reveal-ready .cs-stagger > [data-reveal]:nth-child(6) { transition-delay: 4
   grid-area: 1 / 1;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+  /* A transform of its own, which is the point rather than the value.
+     Inspected live: the prefixed/unprefixed backface-visibility and the
+     nested preserve-3d on .pill/.pill-inner are all present and computing
+     correctly, so the earlier prefix fix landed and was not the cause.
+     What is left is an asymmetry that matches the report exactly — the
+     BACK face carries its own rotateX(180deg) and renders correctly,
+     while the FRONT face had transform: none and is the one showing
+     through upside-down. WebKit evaluates backface-visibility unreliably
+     on an element whose rotation comes only from an ancestor; giving the
+     face its own transform puts it in the 3D rendering context on its own
+     terms. The value is deliberately non-zero: translateZ(0) computed
+     back as matrix(1, 0, 0, 1, 0, 0) — collapsed to a 2D identity, which
+     is precisely the flattening this is meant to avoid. 0.01px is below
+     anything visible and keeps a genuine matrix3d.
+     .pill-face-back's own rotateX(180deg) below still wins for the back
+     face — same specificity, later in the cascade. */
+  transform: translateZ(0.01px);
   white-space: nowrap;
 }
 
@@ -2034,6 +2321,16 @@ html.rail-on::-webkit-scrollbar {
   position: relative;
   /* Arrow glyph plus the 0.5em margin RippleText gives it. */
   --arrow-space: 1.85em;
+  /* Makes the label and its hairline ONE hover target.
+     The rule below is drawn at `bottom: 0.85em` of this box, and the
+     button wrapping this shrink-wraps to it — so with no padding the
+     hairline rendered 12px BELOW the button's own bottom edge (measured:
+     button bottom 585, hairline 597). The text and the line were
+     therefore two separate hit zones, and the whole control was a 21px-
+     tall target. Reserving the space the rule occupies puts it inside
+     the box, so hovering either one — or the gap between them — drives
+     the same :hover, and the target roughly doubles in height. */
+  padding-bottom: 1.7em;
 }
 
 .intro-rule::after {
@@ -2045,7 +2342,9 @@ html.rail-on::-webkit-scrollbar {
      opens it out symmetrically to the full width. */
   left: calc(var(--arrow-space) / 2);
   right: calc(var(--arrow-space) / 2);
-  bottom: -0.85em;
+  /* Was -0.85em, i.e. outside the box. Same place on screen now that the
+     box reserves 1.7em below the label — see the padding above. */
+  bottom: 0.85em;
   height: 1px;
   background: color-mix(in srgb, var(--text-muted) 35%, transparent);
   transition:
@@ -2254,62 +2553,70 @@ html.rail-on::-webkit-scrollbar {
    the mountain stands on a continuous backdrop and only the genuinely
    lit snow occludes it. */
 .ms-plate .ms-hebrew {
-  --wm-strength: 7%;
+  /* Scaled by the entrance ramp (--ms-text-in, written from MountSinai).
+     Fading type through its own colour alpha keeps the fade a per-glyph
+     paint; element opacity here would isolate the twelve drifting rows
+     into a buffer, which is the cost this replaced. */
+  --wm-strength: calc(7% * var(--ms-text-in, 1));
 }
 
 /* What the torch does to the verses. Pitched above where the lifted
    mountain's rock lands, so the writing reads through the body of the
    mountain inside the pool and only the lit snow stands in front. */
 .ms-hebrew-lit {
-  --wm-strength: 46%;
+  --wm-strength: calc(46% * var(--ms-text-in, 1));
 }
 
-/* The verses must stop where the mountain does, not run on past it to
-   the nav. Both stacks share the plain .ms-hebrew class, so one rule
-   covers both: solid until 260px above the mountain's own bottom edge
-   (--ms-foot, the same variable the image box ends on), fading to fully
-   transparent exactly there, and staying transparent the rest of the way
-   down. Below the mountain is plain section background from that point
-   on — nothing renders there, at rest or under the pool.
-   This used to be anchored to a fixed distance from the SECTION's foot
-   (clearing the nav) rather than the mountain's, which left two separate
-   problems: text visibly running on in the gap between the mountain's
-   edge and that band at rest (below what item 1 asks for), and — because
-   only this resting copy carried any mask at all — the LIT copy had no
-   floor whatsoever, so hovering anywhere below the mountain's edge lit up
-   text that was never visible at rest. Give both the same boundary and
-   both problems go away together.
+/* The verses must stop at the name's own baseline (--ms-foot, canvas-
+   measured — see placeFoot() in MountSinai.tsx — and the same value the
+   mountain's own image box is aligned to), not before it and not past it
+   into the nav. Both stacks share the plain .ms-hebrew class, so one
+   rule covers both.
+   This used to fade out fully 50-310px BEFORE reaching that boundary —
+   originally sized to clear the mountain (the comment this replaces
+   explained stopping "where the mountain does"), but the mountain's own
+   foot and the name's baseline are the same point by construction, so a
+   wide margin held back from it just re-created the "stops short, gap
+   before the name" bug on the section that's supposed to run flush to
+   it. Tightened to end exactly at the boundary — the same 40/28/18/9/0
+   shape as .hebrew-mask-fade above, so both sections read as one rule. */
+/* This fade was a mask on .ms-hebrew, and the mask was the last real
+   cost in this section. A masked element has to be rendered into its own
+   buffer so the mask can be applied to the group — which means the
+   twelve verse rows drifting inside it REPAINT every frame instead of
+   being handed to the compositor as a plain transform. Narrowing the
+   rows (see HALF_MIN_CHARS in HebrewWatermark.tsx) cut how many pixels
+   repaint; it could not change the fact that they repaint at all.
 
-   The distance was originally 66px — measured against the verse rows'
-   own pitch (~76px at typical viewport heights), that is LESS than one
-   row's height: a line could go from fully visible to fully gone within
-   less than the gap to its neighbour, which reads as a cut, not a fade.
-   260px spans several rows instead, and the four intermediate stops
-   approximate a smoothstep ease (slow-fast-slow) rather than a straight
-   linear ramp, so the last lines dim down gradually rather than snapping
-   dark right at the boundary. */
-/* Reaches true zero 50px BEFORE --ms-foot, not exactly at it, then holds
-   zero the rest of the way — the text is genuinely gone with a margin to
-   spare before the boundary, rather than its last flicker of visibility
-   coinciding with the edge itself. */
-.ms-field .ms-hebrew {
-  -webkit-mask-image: linear-gradient(
+   An opaque gradient laid OVER the text is identical here, not an
+   approximation. The backdrop behind .ms-hebrew is flat --bg and
+   nothing else shows through: masking computes text·m + backdrop·(1-m),
+   and an overlay of alpha a = 1-m in the backdrop's own colour computes
+   the same value. It also survives the entrance ramp unchanged, since
+   --bg over --bg is --bg at any opacity. Stop positions mirror the old
+   mask exactly, with each alpha inverted (mask 0.85 -> overlay 0.15).
+
+   This is also the choice the section already made once: .ms-hfade is
+   stationary scrims rather than a mask on the rows, for the neighbouring
+   reason that a mask on a translating element translates with it. The
+   vertical fade now matches the horizontal one. */
+.ms-field .ms-hebrew::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
     to bottom,
-    black 0%,
-    black calc(100% - var(--ms-foot, 0px) - 310px),
-    rgba(0, 0, 0, 0.85) calc(100% - var(--ms-foot, 0px) - 245px),
-    rgba(0, 0, 0, 0.5) calc(100% - var(--ms-foot, 0px) - 180px),
-    rgba(0, 0, 0, 0.15) calc(100% - var(--ms-foot, 0px) - 115px),
-    transparent calc(100% - var(--ms-foot, 0px) - 50px)
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    black 0%,
-    black calc(100% - var(--ms-foot, 0px) - 310px),
-    rgba(0, 0, 0, 0.85) calc(100% - var(--ms-foot, 0px) - 245px),
-    rgba(0, 0, 0, 0.5) calc(100% - var(--ms-foot, 0px) - 180px),
-    rgba(0, 0, 0, 0.15) calc(100% - var(--ms-foot, 0px) - 115px),
-    transparent calc(100% - var(--ms-foot, 0px) - 50px)
+    transparent 0%,
+    transparent calc(100% - var(--ms-foot, 0px) - 40px),
+    color-mix(in srgb, var(--bg) 15%, transparent)
+      calc(100% - var(--ms-foot, 0px) - 28px),
+    color-mix(in srgb, var(--bg) 50%, transparent)
+      calc(100% - var(--ms-foot, 0px) - 18px),
+    color-mix(in srgb, var(--bg) 85%, transparent)
+      calc(100% - var(--ms-foot, 0px) - 9px),
+    var(--bg) calc(100% - var(--ms-foot, 0px)),
+    var(--bg) 100%
   );
 }
 
@@ -2376,13 +2683,53 @@ html.rail-on::-webkit-scrollbar {
    letting the brighter layer win pixel for pixel, which is exactly why
    the writing read through the dark rock. Alpha separates the two
    concerns properly.
-   Both copies read the same entrance variables, set once per frame on
-   the field, so the lit stack cannot drift out of register with the
-   resting one mid-entrance. */
+   Both copies read the same entrance variables, written once per frame
+   onto these two elements (see riseTargets in MountSinai.tsx — NOT onto
+   an ancestor), so the lit stack cannot drift out of register with the
+   resting one mid-entrance.
+
+   The 0.01px z is load-bearing, not a typo. translate3d(0, Y, 0) has a
+   zero z, so it computes to a flattened 2D matrix — confirmed live,
+   `matrix(1, 0, 0, 1, 0, 54)`, no matrix3d. The pill's flip bug earlier
+   in this build was the same shape of problem: WebKit treated the
+   flattened and genuinely-3D forms differently, and only an element
+   carrying its own non-zero-z transform behaved. A hundredth of a pixel
+   is below the threshold of anything visible and forces matrix3d.
+   UNVERIFIED against a Safari trace at the time of writing: this is
+   here to be measured, and if the Composite row doesn't move it should
+   come back out rather than stay as cargo. */
 .ms-base,
 .ms-torch-img {
   opacity: var(--ms-in, 1);
-  transform: translate3d(0, var(--ms-rise, 0px), 0);
+  transform: translate3d(0, var(--ms-rise, 0px), 0.01px);
+  /* Both properties above animate every frame of the entrance, on an
+     element that also carries a mask AND (on .ms-base) a filter. Without
+     a layer to live in, that combination has to be re-rendered per frame:
+     re-filter, re-mask, re-composite. A Safari trace of the transition
+     showed exactly that shape — Layout dense only for the first ~1.7s
+     while the scroll ran, then sparse, with Composite sustained and
+     continuous throughout and thickening as the mountain settled in.
+     Layout was done; compositing was not.
+
+     The fade cannot move off the mask here the way .ms-hebrew's did.
+     That worked because the backdrop behind the verses is flat --bg, so
+     an opaque overlay was identical to masking. Behind the MOUNTAIN is
+     the watermark, which the mask deliberately reveals by making the
+     image transparent at its foot — an opaque overlay would paint the
+     verses out instead.
+
+     So: give it a layer, and let the mask and filter bake into that
+     layer once rather than being reapplied per frame.
+     This is will-change on exactly two elements, which is the opposite
+     of the blanket use removed earlier in this project (5,888 hints
+     across a 7,188-node document, promoting everything and helping
+     nothing). The trade is real and worth naming: two full-bleed layers
+     cost roughly 30MB of texture each at DPR 2. That is memory spent to
+     stop per-frame re-rendering — the right way round for a compositor
+     that a trace shows is saturated, but if Safari is instead limited by
+     memory bandwidth it could cost more than it saves. UNVERIFIED on
+     WebKit; remove this declaration to A/B it against a trace. */
+  will-change: transform, opacity;
 }
 
 /* The dim is the rest state everywhere, not just where the torch runs:
@@ -2550,6 +2897,21 @@ html.rail-on::-webkit-scrollbar {
   .ms-base {
     display: none;
   }
+
+  /* Previously bottom-anchored (justify-content: flex-end) instead of
+     spread (justify-between, the default from HebrewWatermark's own
+     markup) on the theory that with no mountain to sit behind, the
+     verses should read as "this section's own ground" clustered near
+     the name. In practice that collapsed all 12 rows flush against each
+     other at the bottom with zero gap, dumping the entire leftover
+     height as one uninterrupted blank band above them — confirmed live
+     at 351px of empty space out of a 998px section, not the intended
+     "sits at the foot" look. Removed so mobile spreads the verses the
+     full section height exactly like desktop and the hero, which never
+     had this override — the fade at the bottom (.ms-field .ms-hebrew's
+     mask, keyed to --ms-foot below) already keeps them clear of the
+     name; nothing here needs to compensate for a mountain that isn't
+     shown. */
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2585,15 +2947,115 @@ html.rail-on::-webkit-scrollbar {
        Home link itself (z-50) */
     z-index: 40;
     pointer-events: none;
+    /* Faded out in lockstep with Home itself (WorkIndex's scroll effect)
+       once Home has nothing left to protect — same 300ms as Home's own
+       transition-opacity, so the two disappear as one, not staggered. */
+    transition: opacity 0.3s ease;
   }
 
-  /* Stick below the Home link, not under it. */
+  /* Stick below the Home link only while it's actually showing; --wi-
+     topbar-h collapses to 0 the moment Home hides, so the header sticks
+     flush to the top instead of leaving an empty opaque band above it —
+     that band, left in place, was what read as a second header bar.
+     transition: top matches the topbar/Home fade so a header that's
+     already stuck when the state flips (scrolling back up near the very
+     top) eases to its new offset instead of snapping. */
   .wi-head {
-    top: 60px;
+    top: var(--wi-topbar-h, 60px);
+    transition: top 0.3s ease;
   }
 
-  /* Jumping to a project must land its title below that band too. */
+  /* Jumping to a project must land its title clear of that band too,
+     while it's showing. */
   .wi-section {
-    scroll-margin-top: 60px;
+    scroll-margin-top: var(--wi-topbar-h, 60px);
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* WebKit compositing reductions (html.wk-fx, stamped pre-paint in      */
+/* app/layout.tsx).                                                     */
+/*                                                                      */
+/* Not a general "make it lighter everywhere" pass — Chrome keeps every */
+/* effect at full strength. These target the three things WebKit is     */
+/* documented as composing more expensively than Blink and that this    */
+/* site leans on hardest: stacked drop-shadows, backdrop-filter, and    */
+/* multi-stop mask gradients.                                           */
+/*                                                                      */
+/* UNMEASURED. Every value here is a considered guess at the cost/look  */
+/* trade, not something confirmed against a Safari trace — remove the   */
+/* wk-fx class in Web Inspector to A/B any of it live against one.      */
+/* ------------------------------------------------------------------ */
+
+/* NOTE: the folder's filter is deliberately NOT reduced here.
+   A previous pass cut it from five drop-shadows to two, collapsing the
+   two orange blooms (0.34 at 26px, 0.26 at 76px) into one — which
+   measurably halved the glow on Safari and nothing else. A second pass
+   then set filter: none on :hover to test a card-clipping theory, which
+   removed the glow outright at exactly the moment anyone looks at it.
+   Together those read as "the glow is gone again", and both were this
+   file's doing, not the scroll/glyph work. Safari now gets the same
+   filter as Chrome — the committed, known-working value — and stays that
+   way until a change here is worth more than the glow is. */
+
+/* backdrop-filter is the most expensive of the three in WebKit: it
+   forces a readback of everything painted behind the element on every
+   frame it is composited. Radii roughly halved rather than removed — the
+   tint underneath each of these already carries most of the legibility,
+   the blur is what makes it feel set into the page. */
+html.wk-fx .st-label {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+html.wk-fx .embla__slide,
+html.wk-fx .embla[data-multi="true"] .embla__slide[data-landscape] {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+html.wk-fx .deck-arrow {
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+/* The five-stop smoothstep fades (hero + closing verses) collapse to a
+   single ramp. Same boundary either way — both still end exactly at
+   their own measured foot variable, so nothing moves relative to the
+   name; only the number of interpolation stops WebKit has to resolve
+   across the mask changes. */
+html.wk-fx .hebrew-mask-fade {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black calc(100% - var(--hero-foot, 0px) - 34px),
+    transparent calc(100% - var(--hero-foot, 0px))
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black calc(100% - var(--hero-foot, 0px) - 34px),
+    transparent calc(100% - var(--hero-foot, 0px))
+  );
+}
+
+/* The WebKit-only simplification of the verse fade used to live here: a
+   two-stop mask instead of the six-stop one, on the theory that WebKit
+   composes multi-stop mask gradients expensively. Removed rather than
+   updated — there is no mask left to simplify. The fade is now a
+   gradient overlay (see .ms-field .ms-hebrew::after), which is a plain
+   background paint on a single static element and costs the same on both
+   engines, so Safari and Chrome can share one definition again. */
+
+/* The folder-sheet clipping on hover (measured: with the spring open the
+   topmost sheet sits ~45px above .work-folder's own border box, which a
+   filtered element's paint region does not cover in WebKit) had a
+   filter: none on :hover here to test that theory. Removed — it cost the
+   glow at exactly the moment the folder is being looked at, and the glow
+   is the thing that keeps getting reported.
+
+   The clipping is still open. When it comes back round, the shape to try
+   is moving these shadows to .folder-back, which does not contain the
+   rising sheets, so the glow survives hover instead of being traded for
+   it. Worth doing deliberately, with a Safari check, not folded into an
+   unrelated pass. */

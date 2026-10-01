@@ -2,11 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { projects } from "@/lib/projects";
 import { useProjectPeek, peekId } from "@/components/ProjectPeek";
+import { useAfterIntro } from "@/lib/use-after-intro";
 
 /**
  * Work sequence — the pills and the Projects folder as ONE continuous
@@ -119,7 +121,11 @@ const FLIP_HOLD_MS = 2000;
 const GLOW_RADIUS = 260;
 
 /* ---- folder data --------------------------------------------------- */
-const DOC_PROJECTS = projects;
+// Kept to CLAUDE.md's curated five (plus Verdure): the homepage sequence
+// excludes NBCUniversal/Hayu work, which /work's Projects index still
+// carries at the top. REST_DOC_Y / HOVER_DOC_Y below are sized to this
+// list's length, not lib/projects.ts's — keep them in step if it grows.
+const DOC_PROJECTS = projects.filter((p) => p.slug !== "tv-tech-info-screen");
 const SPRING_IN = { duration: 0.42, ease: "back.out(2.2)" } as const;
 const SPRING_OUT = { duration: 0.34, ease: "back.out(1.3)" } as const;
 const PRESS = { duration: 0.12, ease: "power2.out" } as const;
@@ -146,11 +152,17 @@ const MAX_LIFT = 3.4; // backstop; the px cap below is what normally binds
    constant 110px rise, ratio 0.236 of the folder's own height, at every
    height tested (1728x1117, 1512x945, 1512x982). A prior pass here had
    drifted the reference up to 195px / 0.418 through several rounds of
-   recalibration; this restores the actually-correct amount as the cap
-   while keeping the scaling mechanism (16" MBP cap, proportional
-   mobile scaling) built around it. */
-const RISE_RATIO = 0.236;
-const MAX_RISE = 110;
+   recalibration; that was corrected back to this 110px/0.236 reference,
+   but reported live as still opening too far on hover — cut by roughly a
+   quarter from there (110 -> 82, 0.236 -> 0.18), same proportional
+   scaling either side of it, not a re-tune of the mechanism itself.
+   Then nudged back up ~12% (82 -> 92, 0.18 -> 0.20) as opening slightly
+   too little, then trimmed 5% off that (92 -> 87, 0.20 -> 0.19): still
+   the same cap-and-scale mechanism throughout, only the 16" MBP
+   reference maximum moves, with every smaller viewport scaling against
+   whatever that reference currently is. */
+const RISE_RATIO = 0.19;
+const MAX_RISE = 87;
 /* Purely a safety: an unusually short window can put the folder nearer
    the top than the proportional travel would clear, and the top sheet
    must not leave the screen. Only binds on those. */
@@ -160,7 +172,17 @@ export default function WorkSequence() {
   const rootRef = useRef<HTMLElement>(null);
   const pinRef = useRef<HTMLDivElement>(null);
   const peek = useProjectPeek();
+  const router = useRouter();
   const marqueeRef = useRef<gsap.core.Tween[]>([]);
+  // Row/copy measurement below is plain DOM reads — cheap, and needed
+  // immediately for correct static layout either way, so it's left
+  // running on mount regardless. What actually waits is the GSAP/
+  // ScrollTrigger work further down: the master pinned timeline building
+  // a 420%-viewport ScrollTrigger is the single heaviest thing this
+  // component does, and ScrollTrigger's own refresh forces a synchronous
+  // layout pass across the page to measure it — see lib/use-after-intro
+  // for why that matters here specifically.
+  const afterIntro = useAfterIntro();
 
   /* How many times each row's set is repeated. The marquee slides by
      exactly one set and loops, so at the end of a cycle the content only
@@ -211,13 +233,44 @@ export default function WorkSequence() {
 
       const padTop = parseFloat(getComputedStyle(stage).paddingTop) || 0;
       const headH = heading.getBoundingClientRect().height;
-      const free = window.innerHeight - padTop - headH - topGap - bottomGap;
+      // Neither window.innerHeight nor visualViewport.height is safe to
+      // fit a fixed row COUNT to: on Chrome for iOS the bottom URL bar is
+      // a true overlay that shows/hides as the reader scrolls, so both
+      // values change live, mid-gesture — direction-dependent (whatever
+      // the bar's state happened to be at the exact moment this last
+      // ran), confirmed by it being right scrolling up into this section
+      // but not scrolling down. A row count is a one-time decision, so it
+      // has to be sized to the SMALLEST the visible area can ever be
+      // (bar fully shown), not whatever it happens to be right now — the
+      // same guarantee CSS svh units give layout, read here into JS with
+      // a throwaway probe since there's no direct API for it. Worst case
+      // this leaves a little unused space once the bar hides; it never
+      // commits to a row the bar can then cover.
+      const probe = document.createElement("div");
+      probe.style.cssText =
+        "position:fixed;top:0;left:0;height:100svh;width:0;visibility:hidden;pointer-events:none;";
+      document.body.appendChild(probe);
+      const svh = probe.getBoundingClientRect().height;
+      document.body.removeChild(probe);
+      const viewportH = svh || window.innerHeight;
+      const free = viewportH - padTop - headH - topGap - bottomGap;
 
       // Nearest, not floor: it halves the worst-case leftover before the
       // gaps have to take it up.
       const n = Math.round((free + baseGap) / (rowH + baseGap));
       if (!Number.isFinite(n)) return;
-      const next = Math.max(MIN_ROWS, Math.min(MAX_ROWS, n));
+      let next = Math.max(MIN_ROWS, Math.min(MAX_ROWS, n));
+
+      // Nearest-rounding can still commit to one row more than the gap
+      // tolerance below is actually able to compress far enough to fit —
+      // on some phone heights that's a real, reported bottom-row clip,
+      // not just a worst-case-leftover trade-off. Back off a row at a
+      // time until even the minimum allowed gap fits, so this can never
+      // commit to a row count the stage doesn't have room for.
+      const minGap = baseGap * (1 - GAP_TOLERANCE);
+      while (next > MIN_ROWS && next * rowH + (next - 1) * minGap > free) {
+        next -= 1;
+      }
 
       /* Past the cap there is more height than nine rows of this size can
          fill, so grow the pills instead of adding a tenth row. Everything
@@ -229,7 +282,7 @@ export default function WorkSequence() {
          padding and border are part of its height. */
       if (n > MAX_ROWS) {
         const rowRatio = rowH / pillSize;
-        const available = window.innerHeight - padTop - headH;
+        const available = viewportH - padTop - headH;
         const denom =
           1 + BOTTOM_MULT + next * rowRatio + (next - 1) * GAP_MULT;
         const grown = Math.min(MAX_PILL, available / denom);
@@ -241,16 +294,27 @@ export default function WorkSequence() {
       // Share the remainder across the gaps, within tolerance.
       if (next > 1) {
         const exact = (free - next * rowH) / (next - 1);
-        const lo = baseGap * (1 - GAP_TOLERANCE);
         const hi = baseGap * (1 + GAP_TOLERANCE);
-        stack.style.rowGap = `${Math.max(lo, Math.min(hi, exact)).toFixed(2)}px`;
+        stack.style.rowGap = `${Math.max(minGap, Math.min(hi, exact)).toFixed(2)}px`;
       }
       if (next !== rowCount) setRowCount(next);
     };
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [rowCount, copies]);
+    // afterIntro: this reads window.innerHeight, and the first call above
+    // runs immediately at mount, deliberately not waiting for afterIntro
+    // (see the comment on that hook above — this measurement is cheap
+    // and needed for correct static layout either way). On a phone that
+    // first read happens while the scripture intro's fixed-position
+    // overlay is still covering the screen, before the reader has
+    // scrolled at all — not necessarily the same innerHeight Safari
+    // settles on once they actually reach the pills, if the browser's
+    // own chrome is in a different state by then. Nothing was re-running
+    // this after that point; a resize doesn't fire just because the
+    // overlay was removed. Re-measuring once afterIntro flips catches
+    // that case without changing the deliberate immediate-mount call.
+  }, [rowCount, copies, afterIntro]);
 
   const rows = Array.from(
     { length: rowCount },
@@ -296,14 +360,16 @@ export default function WorkSequence() {
      viewport where the row count moved off the server-rendered six, which
      left the whole Skills section stuck at opacity 0 on phones. */
   useEffect(() => {
+    if (!afterIntro) return;
     gsap.registerPlugin(ScrollTrigger);
     const id = requestAnimationFrame(() => ScrollTrigger.refresh());
     return () => cancelAnimationFrame(id);
-  }, [rowCount, copies]);
+  }, [rowCount, copies, afterIntro]);
 
   /* ---- master pinned timeline -------------------------------------- */
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!afterIntro) return;
     const root = rootRef.current!;
     root.classList.add("seq-live");
     gsap.registerPlugin(ScrollTrigger);
@@ -377,7 +443,18 @@ export default function WorkSequence() {
       // 4 — Projects resolves out of the black
       tl.to(projStage, { autoAlpha: 1, duration: 34, ease: "power1.out" }, 178);
       tl.to(folder, { scale: 1, y: 0, duration: 50, ease: "power2.out" }, 178);
-      tl.to(word, { color: "rgba(255,107,53,0.30)", duration: 64 }, 178);
+      // A discrete step, not a scrubbed tween — confirmed to be a real,
+      // recurring (not one-time) cost: `color` isn't a compositor
+      // property, so tweening it continuously across 64 timeline units
+      // repainted this ~23vw-wide element on every scrubbed scroll
+      // frame for the whole time the folder is resolving, every single
+      // pass through this range. A two-copy opacity-crossfade avoided
+      // the repaint but introduced its own visible fringing at this
+      // size (two overlapping anti-aliased text layers), so this settles
+      // for a single repaint at one committed point instead — `tl.set`
+      // on a scrub timeline still reverses cleanly on scroll-up, back to
+      // whatever was active before this position.
+      tl.set(word, { color: "rgba(255,107,53,0.30)" }, 210);
       tl.to(caption, { autoAlpha: 1, y: 0, duration: 26, ease: "power1.out" }, 220);
 
       // 5 — hold the folder, fully revealed
@@ -394,7 +471,7 @@ export default function WorkSequence() {
       ctx.revert();
       root.classList.remove("seq-live");
     };
-  }, [rowCount, copies]);
+  }, [rowCount, copies, afterIntro]);
 
   /* ---- autonomous marquee (independent of scroll) ------------------ */
   /* Depends on rowCount as well as copies. It used to list only copies,
@@ -404,6 +481,7 @@ export default function WorkSequence() {
      condition on small screens, but it was the dependency list. */
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!afterIntro) return;
     const ctx = gsap.context(() => {
       const SPEED = 42; // px / second
       marqueeRef.current = [];
@@ -436,8 +514,68 @@ export default function WorkSequence() {
         );
       });
     }, rootRef);
-    return () => ctx.revert();
-  }, [rowCount, copies]);
+
+    // This section pins for ~420% of scroll, and the pills only occupy
+    // the first third or so of that before fading to visibility:hidden
+    // behind the Projects folder — but this marquee, independent of
+    // scroll, kept computing and writing a transform to every row for
+    // the entire pinned range regardless, real work on every frame with
+    // nothing on screen to show for it, stacked directly on top of the
+    // folder's own scroll-scrubbed animation for most of the section's
+    // length. Pausing it once pills-stage is actually hidden (and
+    // resuming, seamlessly — pause/play preserve a tween's progress)
+    // removes that without changing how the loop itself looks or feels.
+    //
+    // This used to poll on every scroll event across the ENTIRE pinned
+    // range via a scroll listener + rAF, including the whole time the
+    // reader is looking at the folder — a getComputedStyle() read every
+    // frame for a check that, once past the pills, never has anything
+    // new to report. GSAP's autoAlpha writes pills-stage's opacity and
+    // visibility as inline styles, so a MutationObserver on that one
+    // attribute reacts only at the two moments that actually matter
+    // (hiding, showing again on scroll-up) instead of continuously
+    // guessing whether anything changed.
+    const pillsStage = rootRef.current?.querySelector<HTMLElement>(".pills-stage");
+    let hidden = false;
+    const checkVisibility = () => {
+      if (!pillsStage) return;
+      const nowHidden = getComputedStyle(pillsStage).visibility === "hidden";
+      if (nowHidden === hidden) return;
+      hidden = nowHidden;
+      marqueeRef.current.forEach((tw) => (hidden ? tw.pause() : tw.play()));
+    };
+    checkVisibility();
+    let observer: MutationObserver | null = null;
+    if (pillsStage) {
+      observer = new MutationObserver(checkVisibility);
+      observer.observe(pillsStage, { attributes: true, attributeFilter: ["style"] });
+    }
+
+    return () => {
+      observer?.disconnect();
+      ctx.revert();
+    };
+  }, [rowCount, copies, afterIntro]);
+
+  /* ---- pre-warm the folder's cover images --------------------------- */
+  /* `loading="eager"` above only moves up when the FETCH starts — it says
+     nothing about when the browser actually decodes the bytes into a
+     paintable bitmap, which most browsers still do lazily, on demand, at
+     first paint. With several stacked sheet covers all needing that at
+     once, right as the folder scales into view, that's a real decode
+     cost landing in the same frames as the scroll-scrubbed reveal —
+     exactly a first-scroll-only hitch, gone once each image is decoded
+     and cached. HTMLImageElement.decode() forces it to happen now,
+     during the same idle window afterIntro already waits for, instead of
+     on demand during the reader's first scroll. */
+  useEffect(() => {
+    if (!afterIntro) return;
+    const root = rootRef.current;
+    if (!root) return;
+    root.querySelectorAll<HTMLImageElement>(".folder-doc img").forEach((img) => {
+      img.decode?.().catch(() => {});
+    });
+  }, [afterIntro]);
 
   /* ---- proximity glow ---------------------------------------------- */
   useEffect(() => {
@@ -483,6 +621,13 @@ export default function WorkSequence() {
   /* ---- click a pill to flip it, pausing the rows ------------------- */
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // Mouse only, same gate as the proximity glow below. A tap has no
+    // hover-exit: the flip could open, pause the marquee, and never get
+    // the close it depends on, and on a phone the pill fills enough of
+    // the screen that an ordinary scroll gesture starting on one would
+    // read as this click instead — never attach any of it on a touch
+    // device, don't just leave it unreachable.
+    if (!window.matchMedia("(pointer: fine)").matches) return;
     const root = rootRef.current!;
     const cleanups: (() => void)[] = [];
     let openPill: HTMLElement | null = null;
@@ -498,12 +643,23 @@ export default function WorkSequence() {
        it turns first and only then shrinks. Doing both together made the
        pill appear to grow sideways mid-rotation, which read as one
        muddled movement instead of two clear ones. */
-    const timers: number[] = [];
-    const after = (ms: number, fn: () => void) => {
-      timers.push(window.setTimeout(fn, ms));
+    // Per-pill, not one shared list: close() on a newly-clicked pill used
+    // to clear a single array every pill's open()/close() pushed into, so
+    // switching pills fast enough (before the previous one's own delayed
+    // cleanup had fired) wiped that pill's still-pending timers too — its
+    // clear() (which resets the pinned width and dataset) never ran,
+    // leaving it stuck mid-transition, showing its flipped back face
+    // alongside whichever pill opened next. Confirmed as a real race
+    // condition by reading the sequencing, not observed directly.
+    const timersByPill = new WeakMap<HTMLElement, number[]>();
+    const after = (pill: HTMLElement, ms: number, fn: () => void) => {
+      const list = timersByPill.get(pill) ?? [];
+      list.push(window.setTimeout(fn, ms));
+      timersByPill.set(pill, list);
     };
-    const clearStages = () => {
-      timers.splice(0).forEach((id) => window.clearTimeout(id));
+    const clearStages = (pill: HTMLElement) => {
+      (timersByPill.get(pill) ?? []).forEach((id) => window.clearTimeout(id));
+      timersByPill.delete(pill);
     };
 
     /* The definition is out of flow so it cannot stretch the resting
@@ -528,7 +684,7 @@ export default function WorkSequence() {
     const close = () => {
       const pill = openPill;
       if (!pill) return;
-      clearStages();
+      clearStages(pill);
       openPill = null;
       const rest = pill.dataset.restWidth;
       const clear = () => {
@@ -540,15 +696,15 @@ export default function WorkSequence() {
         // Mirror of the opening order: give the width back first, so the
         // pill is its full size again before it turns.
         if (rest) pill.style.width = `${rest}px`;
-        after(FLIP_WIDEN_MS, () => {
+        after(pill, FLIP_WIDEN_MS, () => {
           pill.classList.remove("pill-flipped");
-          after(FLIP_TURN_MS + 40, clear);
+          after(pill, FLIP_TURN_MS + 40, clear);
         });
       } else {
         pill.classList.remove("pill-flipped");
-        after(FLIP_TURN_MS, () => {
+        after(pill, FLIP_TURN_MS, () => {
           if (rest) pill.style.width = `${rest}px`;
-          after(FLIP_WIDEN_MS + 40, clear);
+          after(pill, FLIP_WIDEN_MS + 40, clear);
         });
       }
       setPaused(false);
@@ -587,20 +743,21 @@ export default function WorkSequence() {
 
       if (shrinks) {
         pill.classList.add("pill-flipped");
-        after(FLIP_TURN_MS, () => {
+        after(pill, FLIP_TURN_MS, () => {
           if (wide) pill.style.width = `${wide}px`;
-          after(FLIP_WIDEN_MS + FLIP_HOLD_MS, close);
+          after(pill, FLIP_WIDEN_MS + FLIP_HOLD_MS, close);
         });
       } else {
         if (wide) pill.style.width = `${wide}px`;
-        after(FLIP_WIDEN_MS, () => {
+        after(pill, FLIP_WIDEN_MS, () => {
           pill.classList.add("pill-flipped");
-          after(FLIP_TURN_MS + FLIP_HOLD_MS, close);
+          after(pill, FLIP_TURN_MS + FLIP_HOLD_MS, close);
         });
       }
     };
 
-    root.querySelectorAll<HTMLElement>(".pill").forEach((pill) => {
+    const pills = Array.from(root.querySelectorAll<HTMLElement>(".pill"));
+    pills.forEach((pill) => {
       const onClick = () => {
         if (openPill === pill) {
           close();
@@ -614,7 +771,7 @@ export default function WorkSequence() {
     });
 
     return () => {
-      clearStages();
+      pills.forEach((pill) => clearStages(pill));
       cleanups.forEach((fn) => fn());
       setPaused(false);
     };
@@ -623,10 +780,34 @@ export default function WorkSequence() {
   /* ---- folder spring hover ----------------------------------------- */
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // Mouse only — same gate as the proximity glow above, and for the
+    // same reason. pointerenter/pointerleave fire for touch too, and
+    // .work-folder sits at a fixed screen position under
+    // .seq-live .projects-stage (position:absolute; inset:0 — both
+    // stages are stacked on the same rectangle the whole time, only
+    // visibility separates them), exactly where a scrolling thumb often
+    // rests. The instant the scrub timeline made it hit-testable
+    // (visibility:visible) mid-scroll, a stray pointerenter under a
+    // stationary finger ran calibrate()'s 8-round synchronous
+    // getBoundingClientRect()/gsap.set() bisection and a full settle()
+    // tween on top of the scrub timeline's own writes to the same
+    // element — once, since calibrate caches per viewport size, which
+    // is exactly the reported "juddery first time, smooth after" shape.
+    // The click-to-open-then-navigate behaviour below still has to work
+    // on touch, so only the hover/press listeners stay behind this gate
+    // — the click handler is attached unconditionally further down.
+    const fine = window.matchMedia("(pointer: fine)").matches;
+    if (!afterIntro) return;
     const root = rootRef.current!;
     const folder = root.querySelector<HTMLElement>(".work-folder")!;
     const front = root.querySelector<HTMLElement>(".folder-front")!;
     const docs = Array.from(root.querySelectorAll<HTMLElement>(".folder-doc"));
+    // .folder-front's CSS fallback transition (for no-JS/reduced-motion)
+    // is scoped to stand down under .spring-on — wire it up now that JS
+    // is actually driving the spring, so GSAP's own tween on the same
+    // rotateX isn't also being re-eased by an independent CSS transition
+    // underneath it. That double-easing was part of what read as lag.
+    root.classList.add("spring-on");
     const caption = root.querySelector<HTMLElement>(".seq-caption");
     let pressed = false;
 
@@ -753,19 +934,54 @@ export default function WorkSequence() {
       pressed = false;
       settle(true);
     };
-    folder.addEventListener("pointerenter", onEnter);
-    folder.addEventListener("pointerleave", onLeave);
-    folder.addEventListener("pointerdown", onDown);
-    folder.addEventListener("pointerup", onUp);
+    if (fine) {
+      folder.addEventListener("pointerenter", onEnter);
+      folder.addEventListener("pointerleave", onLeave);
+      folder.addEventListener("pointerdown", onDown);
+      folder.addEventListener("pointerup", onUp);
+    }
+
+    // Clicking "My Work" used to navigate immediately via the plain
+    // <Link>, cutting the spring-open animation off mid-flight if it was
+    // still playing (click straight after the hover that started it) on
+    // fine pointers, and not playing at all on touch — where this
+    // handler used to not be attached, since the rest of this effect
+    // never mounted there, so a tap fell straight through to the bare
+    // <Link> with no animation and, on some mobile browsers, a first tap
+    // consumed only as the hover-simulation Safari gives touch before a
+    // second tap actually follows the link. Attached unconditionally now:
+    // touch has no prior hover to have calibrated from, so this calls
+    // calibrate() itself before settling — cheap, since it's a no-op
+    // once already calibrated for the current viewport size.
+    let navigateTimer = 0;
+    let navigating = false;
+    const openDurationMs =
+      (SPRING_IN.duration + Math.max(0, docs.length - 1) * 0.028) * 1000 + 40;
+    const onFrontClick = (e: MouseEvent) => {
+      if (navigating) return;
+      e.preventDefault();
+      navigating = true;
+      calibrate();
+      settle(true);
+      navigateTimer = window.setTimeout(() => {
+        router.push("/work");
+      }, openDurationMs);
+    };
+    front.addEventListener("click", onFrontClick);
 
     return () => {
-      folder.removeEventListener("pointerenter", onEnter);
-      folder.removeEventListener("pointerleave", onLeave);
-      folder.removeEventListener("pointerdown", onDown);
-      folder.removeEventListener("pointerup", onUp);
+      if (fine) {
+        folder.removeEventListener("pointerenter", onEnter);
+        folder.removeEventListener("pointerleave", onLeave);
+        folder.removeEventListener("pointerdown", onDown);
+        folder.removeEventListener("pointerup", onUp);
+      }
+      front.removeEventListener("click", onFrontClick);
+      window.clearTimeout(navigateTimer);
       gsap.killTweensOf([folder, front, ...docs, ...(caption ? [caption] : [])]);
+      root.classList.remove("spring-on");
     };
-  }, []);
+  }, [afterIntro, router]);
 
   return (
     <section ref={rootRef} id="work" aria-label="Roles and projects">
@@ -822,61 +1038,85 @@ export default function WorkSequence() {
           <span className="sr-only">Projects</span>
 
           <div className="relative z-10 flex flex-col items-center">
+            {/* A split into .work-folder (filter) / .folder-spring
+                (transform) was tried here to stop WebKit re-rasterising
+                the drop-shadow every animated frame — it made the glow
+                stop rendering on real Safari even at rest, for a reason
+                not yet pinned down (isolation:isolate didn't fix it
+                either), so it's reverted to this single-element version,
+                the last confirmed-working state. The filter+transform-
+                on-one-element cost this was addressing is real but
+                untouched for now — revisit once there's an actual
+                mechanism for the Safari bug, not another guess at one. */}
             <div className="work-folder">
-              <span aria-hidden className="folder-back" />
-              <span className="folder-docs">
-                {DOC_PROJECTS.map((p, i) => (
-                  <button
-                    key={p.slug}
-                    type="button"
-                    className="folder-doc"
-                    data-i={i}
-                    aria-label={`${p.title} — quick look`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      peek.open(p.slug);
-                    }}
-                  >
-                    <span
-                      className="folder-doc-inner peek-card"
-                      data-layout-id={peekId(p.slug)}
+                <span aria-hidden className="folder-back" />
+                <span className="folder-docs">
+                  {DOC_PROJECTS.map((p, i) => (
+                    <button
+                      key={p.slug}
+                      type="button"
+                      className="folder-doc"
+                      data-i={i}
+                      aria-label={`${p.title} — quick look`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        peek.open(p.slug);
+                      }}
                     >
-                      {/* Only the top band of each sheet clears the folder
-                          front, and these covers are landscape with their
-                          subject centred — unzoomed, the sliver on show is
-                          just empty backdrop (Interax read as a blank white
-                          sheet). Scaling about a point below centre lifts
-                          each cover's subject into the visible band. */}
-                      <Image
-                        src={p.cover.src}
-                        alt=""
-                        fill
-                        /* The sheet renders ~650px wide and is then
-                           magnified 1.45x by the transform below, so the
-                           browser paints roughly 950 CSS px of image — and
-                           twice that on a retina display. The old 300px
-                           hint had Next serving a 640px file (384px at 1x)
-                           into that, which is where the softness came
-                           from. */
-                        sizes="(max-width: 767px) 92vw, 950px"
-                        quality={90}
-                        className="object-cover"
-                        style={{
-                          transform: "scale(1.45)",
-                          transformOrigin: "50% 58%",
-                        }}
-                      />
-                    </span>
-                  </button>
-                ))}
-              </span>
-              <Link
-                href="/work"
-                aria-label="View all projects"
-                className="folder-front outline-offset-8"
-              >
-                <span className="folder-label">My Work</span>
-              </Link>
+                      <span
+                        className="folder-doc-inner peek-card"
+                        data-layout-id={peekId(p.slug)}
+                      >
+                        {/* Only the top band of each sheet clears the folder
+                            front, and these covers are landscape with their
+                            subject centred — unzoomed, the sliver on show is
+                            just empty backdrop (Interax read as a blank white
+                            sheet). Scaling about a point below centre lifts
+                            each cover's subject into the visible band. */}
+                        <Image
+                          src={p.cover.src}
+                          alt=""
+                          fill
+                          /* Eager, not the default lazy: these sheets sit
+                             inside a pinned section a long way down the
+                             page, so the default IntersectionObserver-based
+                             lazy load only starts fetching/decoding them
+                             once the reader has scrolled close — which is
+                             also the exact moment the folder's own
+                             scroll-scrubbed reveal is running, so the two
+                             compete for the main thread on first approach.
+                             Eager loading starts the fetch at mount instead,
+                             well before that scroll happens, without going
+                             as far as `priority` (which would also push
+                             these into the initial preload set and compete
+                             with the actual above-the-fold hero assets). */
+                          loading="eager"
+                          /* The sheet renders ~650px wide and is then
+                             magnified 1.45x by the transform below, so the
+                             browser paints roughly 950 CSS px of image — and
+                             twice that on a retina display. The old 300px
+                             hint had Next serving a 640px file (384px at 1x)
+                             into that, which is where the softness came
+                             from. */
+                          sizes="(max-width: 767px) 92vw, 950px"
+                          quality={90}
+                          className="object-cover"
+                          style={{
+                            transform: "scale(1.45)",
+                            transformOrigin: "50% 58%",
+                          }}
+                        />
+                      </span>
+                    </button>
+                  ))}
+                </span>
+                <Link
+                  href="/work"
+                  aria-label="View all projects"
+                  className="folder-front outline-offset-8"
+                >
+                  <span className="folder-label">My Work</span>
+                </Link>
             </div>
 
             <p className="seq-caption mt-12 text-body-s text-text-muted">

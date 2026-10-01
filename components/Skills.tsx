@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useAfterIntro } from "@/lib/use-after-intro";
 
 /**
  * Skills — three discipline categories, each listing its software plainly.
@@ -75,9 +76,15 @@ const GROUPS: { title: string; blurb: string; tools: Tool[] }[] = [
 export default function Skills() {
   const sectionRef = useRef<HTMLElement>(null);
   const [open, setOpen] = useState<string | null>(null);
+  // See lib/use-after-intro — this section's own ScrollTrigger setup
+  // mounts and runs regardless of being hidden behind the intro overlay,
+  // competing with the intro's character reveal for the main thread on a
+  // phone.
+  const afterIntro = useAfterIntro();
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!afterIntro) return;
 
     const section = sectionRef.current!;
     section.classList.add("skills-live");
@@ -142,7 +149,7 @@ export default function Skills() {
       ctx.revert();
       section.classList.remove("skills-live");
     };
-  }, []);
+  }, [afterIntro]);
 
   return (
     <section

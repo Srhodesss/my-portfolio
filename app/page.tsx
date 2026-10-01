@@ -1,4 +1,5 @@
 import About from "@/components/About";
+import AnimationGate from "@/components/AnimationGate";
 import ScrollTimeline from "@/components/ScrollTimeline";
 import SectionHandoff from "@/components/SectionHandoff";
 import Closing from "@/components/Closing";
@@ -23,6 +24,7 @@ export default function Home() {
       <SectionHandoff from="#hero" to="#about" />
       <SectionHandoff from="#skills" to="#contact" />
       <ScrollPacing />
+      <AnimationGate />
     </main>
   );
 }

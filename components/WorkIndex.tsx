@@ -320,6 +320,17 @@ export default function WorkIndex() {
   useEffect(() => {
     const home = homeRef.current;
     const title = document.querySelector<HTMLElement>(".work-title");
+    // .wi-topbar exists purely to give Home a solid background where a
+    // sticky project header would otherwise scroll up underneath it (see
+    // .wi-topbar in globals.css). Once Home itself hides — the reader has
+    // scrolled past it — that band has nothing left to protect, but it
+    // used to stay fixed and opaque regardless, sitting directly above
+    // each project's own sticky header and reading as a second bar
+    // stacked on top of it. Tying both to the same `hidden` value means
+    // there's never a band with nothing in it: the reserved space (and
+    // the sticky headers' offset below it, via --wi-topbar-h) collapses
+    // in lockstep with Home disappearing.
+    const topbar = document.querySelector<HTMLElement>(".wi-topbar");
     if (!home || !title) return;
     let raf = 0;
     const apply = () => {
@@ -332,6 +343,24 @@ export default function WorkIndex() {
       const hidden = overlapping || scrolledPastTop;
       home.style.opacity = hidden ? "0" : "1";
       home.style.pointerEvents = hidden ? "none" : "";
+      if (topbar) {
+        // Hiding: .wi-head's own top offset is easing from 60px to 0px
+        // over the same 0.3s as this fade (below). Fading the topbar's
+        // opacity on the same timeline means it goes translucent while
+        // still the only thing covering the band .wi-head hasn't
+        // reached yet — a real, not transparent-on-purpose, gap that
+        // scrolling content shows through. Delaying the fade until
+        // .wi-head has finished closing that gap itself removes the
+        // window entirely. Showing has no such gap to protect against
+        // (the topbar needs to be solid before .wi-head backs off), so
+        // it stays immediate.
+        topbar.style.transitionDelay = hidden ? "0.3s" : "0s";
+        topbar.style.opacity = hidden ? "0" : "1";
+      }
+      document.documentElement.style.setProperty(
+        "--wi-topbar-h",
+        hidden ? "0px" : "60px",
+      );
     };
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(apply);
@@ -343,6 +372,7 @@ export default function WorkIndex() {
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
       if (raf) cancelAnimationFrame(raf);
+      document.documentElement.style.removeProperty("--wi-topbar-h");
     };
   }, []);
 

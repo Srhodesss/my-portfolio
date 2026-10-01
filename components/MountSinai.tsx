@@ -182,6 +182,30 @@ export default function MountSinai() {
     const inner = innerRef.current!;
     const hint = hintRef.current!;
     const hfade = hfadeRef.current!;
+    /* The only two elements that read --ms-in and --ms-rise (see
+       `.ms-base, .ms-torch-img` in globals.css), held here so the
+       per-frame writes in applyIn can land ON them rather than on an
+       ancestor. That distinction is the whole point, and it is worth
+       more than it looks: a custom property written on `wrap` dirties
+       every descendant that could possibly reference it, and `wrap` is
+       the root of a 3,013-node subtree (43% of the document — two full
+       Hebrew watermark stacks, twelve scrim rows, six masked elements
+       and two filtered ones). Measured live, mid-transition: writing
+       one custom property on `wrap` and flushing style cost a 4.5ms
+       median, 27% of a 60fps frame, in Chromium — while writing the
+       same value on these two leaf <img>s cost 0.0ms (1084ms vs 4.6ms
+       over 240 iterations). The control that proves it is the real
+       animated property next door: `wrap.style.opacity`, which
+       genuinely animates that entire masked subtree every frame, costs
+       0.0ms. The subtree isn't expensive to animate — it is expensive
+       to INVALIDATE, and only var() writes do that.
+       So: never move these two writes back onto `wrap` for tidiness. */
+    const riseTargets = wrap.querySelectorAll<HTMLElement>(
+      ".ms-base, .ms-torch-img",
+    );
+    // The verse stacks, resting and lit. Same rule as riseTargets: the
+    // entrance fade is written ON them, never on a shared ancestor.
+    const textTargets = wrap.querySelectorAll<HTMLElement>(".ms-hebrew");
 
     const cleanups: (() => void)[] = [];
 
@@ -217,7 +241,7 @@ export default function MountSinai() {
     // as a no-op and gets pointed at the real function once it exists
     // sidesteps the ordering rather than fighting it — see why applyIn
     // needs it at all just below (--ms-rise).
-    let placePeakFn: (() => void) | null = null;
+    let placePeakFn: ((notify?: boolean) => void) | null = null;
     // Same story, same fix, for the per-row horizontal fade: it reads
     // the mountain image's current position too (to work out which
     // natural-image row each line of verse text corresponds to), and
@@ -240,14 +264,51 @@ export default function MountSinai() {
     };
 
     let inRaf = 0;
+    // Last mountain-ramp value the geometry below was rebuilt for. -1 so
+    // the first frame always builds.
+    let lastM = -1;
+    // Same guard as ScrollPacing's: everything here is derived from where
+    // the page is, so an event at an unchanged position recomputes an
+    // identical answer. At the foot of the page the position is clamped
+    // while momentum and rubber-banding keep firing events, and this
+    // function's two reads (wrap and hint) were 2 of the 8 forced layout
+    // reads measured per scroll event there.
+    let lastScrollY = -1;
+    // Last strings published to the images and the verse stacks.
+    let lastInStr = "";
+    let lastRiseStr = "";
+    let lastTextInStr = "";
     const applyIn = () => {
       inRaf = 0;
+      const y = window.scrollY;
+      if (y === lastScrollY) return;
+      lastScrollY = y;
       const vh = window.innerHeight;
       wrapRect = wrap.getBoundingClientRect();
       if (hintRect) hintRect = hint.getBoundingClientRect();
       const top = wrapRect.top;
       const o = Math.max(0, Math.min(1, (vh * 0.72 - top) / (vh * 0.52)));
-      wrap.style.opacity = o.toFixed(3);
+      /* NOT wrap.style.opacity, which is what this used to be.
+         An opacity below 1 makes an element an isolated group: the whole
+         subtree has to be rendered into its own buffer before the alpha
+         can be applied to it. `wrap` is the root of ~3,000 nodes holding
+         two watermark stacks, the scrims, the mountain and the torch's
+         filtered copy — and this ramp runs across precisely the window
+         that judders, from the section's top at 0.72vh to 0.20vh, so the
+         buffer was live for the entire Contact-to-closing scroll and
+         everything inside it re-rendered into it each frame.
+         Unlike the compositing guesses earlier in this file, isolation is
+         spec behaviour rather than a WebKit quirk: both engines must do
+         it, they only differ in what it costs.
+         The fade is now done at the leaves instead, where there is no
+         group to isolate — text through its own colour alpha
+         (--ms-text-in -> --wm-strength, a per-glyph paint, not a layer),
+         and the mountain by folding o into --ms-in, which is already a
+         plain opacity on two <img> elements with no children to buffer.
+         The scrims need no fade at all: they paint --bg-coloured
+         gradients, so at any strength they are background over
+         background. Visibility still gates the whole thing, which costs
+         nothing because it is not a composited property. */
       wrap.style.visibility = o === 0 ? "hidden" : "visible";
 
       // The mountain's own ramp: starts later and runs longer, so it is
@@ -255,8 +316,34 @@ export default function MountSinai() {
       // the same two variables, so the lit stack can never drift out of
       // register with the resting one.
       const m = ease((vh * MTN_START - top) / (vh * MTN_SPAN));
-      wrap.style.setProperty("--ms-in", m.toFixed(3));
-      wrap.style.setProperty("--ms-rise", `${((1 - m) * MTN_RISE).toFixed(1)}px`);
+      // On the images themselves, not on wrap — see riseTargets above for
+      // the measurement, and for why this is not a style preference.
+      // o folded in here: the mountain's effective alpha was o * m when o
+      // lived on the group, so it stays o * m now that it doesn't.
+      const inStr = (m * o).toFixed(3);
+      const riseStr = `${((1 - m) * MTN_RISE).toFixed(1)}px`;
+      // Only when the published value actually differs. Both ramps pin at
+      // their endpoints well before the scroll does, so the tail of every
+      // transition was rewriting identical strings onto both images each
+      // frame — the same "publish on change" rule the rest of this file
+      // already follows.
+      if (inStr !== lastInStr || riseStr !== lastRiseStr) {
+        lastInStr = inStr;
+        lastRiseStr = riseStr;
+        for (const el of riseTargets) {
+          el.style.setProperty("--ms-in", inStr);
+          el.style.setProperty("--ms-rise", riseStr);
+        }
+      }
+      // The verses' own fade, on the two .ms-hebrew stacks rather than an
+      // ancestor — same reason the two lines above target the images.
+      const textInStr = o.toFixed(3);
+      if (textInStr !== lastTextInStr) {
+        lastTextInStr = textInStr;
+        for (const el of textTargets) {
+          el.style.setProperty("--ms-text-in", textInStr);
+        }
+      }
 
       // --ms-rise above is a CSS transform on the image itself (see
       // .ms-base/.ms-torch-img), so the mountain keeps visibly sliding
@@ -271,7 +358,26 @@ export default function MountSinai() {
       // exactly MTN_RISE — this is that bug, not a rounding error.
       // Calling it here settles the geometry in step with the same
       // scroll-driven animation that moves the picture.
-      placePeakFn?.();
+      //
+      // Only while that animation is actually moving, though. Both calls
+      // below derive everything from the mountain's position, and that is
+      // driven entirely by --ms-rise above — every other quantity they use
+      // is measured relative to `wrap`, so scrolling the page moves the
+      // section and its rows together and changes none of it. Once m
+      // settles (the rise reaches 0 and the reader keeps scrolling through
+      // the section) the output is identical every frame, and
+      // updateHorizontalFade in particular is not cheap to repeat: a
+      // querySelectorAll, ~14 getBoundingClientRects, and twelve
+      // eleven-stop linear-gradient strings built and re-parsed. That was
+      // running on every scroll frame from the moment the proximity
+      // observer opens, 300px out — i.e. starting exactly at the handoff
+      // in from Contact.
+      const mMoved = Math.abs(m - lastM) > 0.001;
+      if (mMoved) lastM = m;
+      // notify:false — see placePeak. CustomCursor refreshes its own
+      // cached rect on scroll, which is the only way this path is ever
+      // reached, so announcing it again here just costs another read.
+      if (mMoved) placePeakFn?.(false);
       // Same fix for the per-row fade, same reason: measured live at
       // rest (--ms-rise settled to 0) against a fresh recomputation, two
       // separate rows disagreed with what was actually on screen — one
@@ -284,15 +390,39 @@ export default function MountSinai() {
       // is no longer where this line of text actually falls). Both are
       // exactly what "reported as fixed, still not visible" looks like:
       // not too subtle to see, actually wrong for those rows.
-      updateHorizontalFadeFn?.();
+      // (Gated on the same mMoved as placePeak — see above.)
+      if (mMoved) updateHorizontalFadeFn?.();
     };
+    // Confirmed via Safari Web Inspector Timeline traces (Layout &
+    // Rendering and JavaScript & Events both firing near-continuously,
+    // CPU climbing toward 100%, across scroll windows nowhere near this
+    // section — Hero-to-About included): this scroll listener had no
+    // proximity gate at all, so it ran applyIn (getBoundingClientRect on
+    // wrap/hint, then — once fine+desktop's gate further down has
+    // assigned them — placePeak's own reads and updateHorizontalFade's
+    // per-row read/write loop) on every scroll event anywhere on the
+    // page, for the entire time this component stayed mounted, which is
+    // the whole time the page is open. Gated the same way About.tsx and
+    // Contact.tsx already gate their own scroll-linked loops: only do any
+    // of this while the section is within reach of the viewport.
+    let isNear = false;
     const onScroll = () => {
+      if (!isNear) return;
       if (!inRaf) inRaf = requestAnimationFrame(applyIn);
     };
+    const proximityObserver = new IntersectionObserver(
+      ([entry]) => {
+        isNear = entry.isIntersecting;
+        if (isNear && !inRaf) inRaf = requestAnimationFrame(applyIn);
+      },
+      { rootMargin: "300px 0px 300px 0px" },
+    );
+    proximityObserver.observe(wrap);
     window.addEventListener("scroll", onScroll, { passive: true });
     applyIn();
     cleanups.push(
       () => window.removeEventListener("scroll", onScroll),
+      () => proximityObserver.disconnect(),
       () => {
         if (inRaf) cancelAnimationFrame(inRaf);
       },
@@ -469,7 +599,14 @@ export default function MountSinai() {
        The image is `cover` on desktop and `contain` on a phone, so the
        mapping is read from the element rather than assumed — same
        arithmetic the browser uses to lay the picture out. */
-    const placePeak = () => {
+    /* `notify` announces the new geometry to CustomCursor, which caches
+       this zone's rect rather than reading it per frame. That matters for
+       the callers it was written for — image load, resize — where nothing
+       else would ever tell it. It does NOT matter on the scroll-driven
+       path: CustomCursor already refreshes its own cache on scroll, so
+       dispatching there only bought a second synchronous rect read of an
+       element whose box had just been rewritten, once per frame. */
+    const placePeak = (notify = true) => {
       const nw = baseImg.naturalWidth;
       const nh = baseImg.naturalHeight;
       if (!nw || !nh) return;
@@ -515,11 +652,22 @@ export default function MountSinai() {
         const topRender = ir.top - f.top + oy + bbox.minY * fit;
         const bottomRender =
           ir.top - f.top + oy + ((bbox.minY + bbox.maxY) / 2) * fit;
-        peak.style.left = `${Math.round(leftRender)}px`;
-        peak.style.top = `${Math.round(topRender)}px`;
-        peak.style.width = `${Math.round(rightRender - leftRender)}px`;
-        peak.style.height = `${Math.round(bottomRender - topRender)}px`;
-        peakZoneRect = peak.getBoundingClientRect();
+        const zx = Math.round(leftRender);
+        const zy = Math.round(topRender);
+        const zw = Math.round(rightRender - leftRender);
+        const zh = Math.round(bottomRender - topRender);
+        peak.style.left = `${zx}px`;
+        peak.style.top = `${zy}px`;
+        peak.style.width = `${zw}px`;
+        peak.style.height = `${zh}px`;
+        /* Constructed, not read back. This was peak.getBoundingClientRect()
+           immediately after the four writes above — a read of the very box
+           that had just been invalidated, so the browser had to flush
+           layout synchronously before it could answer, every single call.
+           .ms-peak is absolutely positioned against `wrap`, and `f` is
+           wrap's own rect, so the same numbers just written give the
+           viewport box directly with no measuring at all. */
+        peakZoneRect = new DOMRect(f.left + zx, f.top + zy, zw, zh);
 
         // The rectangle above is a bounding region, not the silhouette
         // itself — the mountain narrows toward its own peak, so a good
@@ -570,11 +718,15 @@ export default function MountSinai() {
       // than one order-dependent on the other. This event is the one
       // signal that is actually true exactly when the geometry changes,
       // in both cases.
-      window.dispatchEvent(new Event("ms-peak-updated"));
+      if (notify) window.dispatchEvent(new Event("ms-peak-updated"));
     };
     placePeakFn = placePeak;
 
     const measure = () => {
+      // Geometry can change with the page standing still, so the
+      // position guard in applyIn has to be cleared here.
+      lastScrollY = -1;
+      invalidateRowGeom();
       const r = wrap.getBoundingClientRect();
       wrapRect = r; // resize is the other thing that moves/resizes wrap
       inner.style.width = `${Math.round(r.width)}px`;
@@ -663,6 +815,38 @@ export default function MountSinai() {
     // the dimming as gradual rather than sudden.
     const FADE_MARGIN = 140;
 
+    // Confirmed live in Safari (desktop, pointer:fine — this whole block's
+    // gate) as a real per-frame cost: the scan below walks the mountain's
+    // entire natural width for every one of the ~12 verse rows, and this
+    // whole function runs from applyIn on every scroll frame while the
+    // section is revealing. Chrome's JS engine apparently absorbs that
+    // cost invisibly; Safari's doesn't, and it read as judder there
+    // specifically. The alpha data is immutable for the life of this
+    // effect (one static image, loaded once), so the scan result for a
+    // given natural-image row never changes — cached by naturalY rather
+    // than re-walked every frame; only the row's on-screen position moves
+    // as the section scrolls, not what pixel data is at that row.
+    const edgeCache = new Map<number, { minX: number; maxX: number } | null>();
+
+    /* Each row's box RELATIVE TO THE FIELD, cached.
+       Measured mid-transition (not parked — parked is what every earlier
+       measurement in this file covered): 14.1 forced layout reads per
+       frame, 4.9 of them this function re-reading the twelve row rects.
+       The mMoved gate added earlier stops that at rest, but mMoved is
+       true on every frame of the entrance ramp, which is precisely the
+       window that judders — so the gate never applied where it mattered.
+       Those reads were re-deriving a constant. The rows are laid out
+       statically inside the field, so `rr.top - f.top` and `rr.height`
+       cannot change as the page scrolls: the field and its rows move
+       together. The only thing moving underneath them is the mountain,
+       via oy (--ms-rise). Cache the row geometry, recompute it only when
+       the layout actually changes (measure(), below, clears it), and
+       the per-frame cost becomes arithmetic against oy. */
+    let rowGeom: { relTop: number; height: number }[] | null = null;
+    const invalidateRowGeom = () => {
+      rowGeom = null;
+    };
+
     const updateHorizontalFade = () => {
       const alpha = getAlphaData();
       if (!alpha) return;
@@ -682,6 +866,32 @@ export default function MountSinai() {
       const oy = ir.top - f.top + (ir.height - rh) * (posY / 100);
 
       const rows = wrap.querySelectorAll<HTMLElement>(".ms-plate .wm-row");
+
+      // Read every row's rect before writing anything below. Confirmed
+      // live in Safari's Timeline (Layout & Rendering firing
+      // near-continuously across the whole scroll window, CPU climbing
+      // toward 100%) as the classic layout-thrashing shape: the old loop
+      // read a row's rect, then immediately wrote that row's overlay
+      // top/height, then read the NEXT row's rect — a write the browser
+      // can't prove doesn't affect layout elsewhere, right before a read
+      // that needs current geometry, forces a synchronous recalculation
+      // each time round. Batching every read first means the write phase
+      // below never has a stale-layout read waiting behind it.
+      if (!rowGeom || rowGeom.length !== rows.length) {
+        // The one read pass, on layout change rather than per frame. Still
+        // batched ahead of every write below, for the reason in the
+        // comment above: interleaving them forces a synchronous
+        // recalculation per row.
+        const measured = Array.from(rows, (row) =>
+          row.getBoundingClientRect(),
+        );
+        rowGeom = measured.map((rr) => ({
+          relTop: rr.top - f.top,
+          height: rr.height,
+        }));
+      }
+      const geom = rowGeom;
+
       while (hfade.children.length < rows.length) {
         hfade.appendChild(document.createElement("div"));
       }
@@ -691,17 +901,17 @@ export default function MountSinai() {
 
       rows.forEach((row, i) => {
         const overlay = hfade.children[i] as HTMLElement;
-        const rr = row.getBoundingClientRect();
+        const g = geom[i];
         overlay.style.position = "absolute";
         overlay.style.left = "0";
         overlay.style.right = "0";
-        overlay.style.top = `${Math.round(rr.top - f.top)}px`;
-        overlay.style.height = `${Math.round(rr.height)}px`;
+        overlay.style.top = `${Math.round(g.relTop)}px`;
+        overlay.style.height = `${Math.round(g.height)}px`;
 
         // Row's vertical centre, in the source image's own pixel space
         // — which natural-image row this line of glyphs actually lands
         // on, so the sample matches what's rendered at that height.
-        const localY = rr.top + rr.height / 2 - f.top - oy;
+        const localY = g.relTop + g.height / 2 - oy;
         const v = localY / rh;
         if (v < 0 || v > 1) {
           // Outside the rendered image entirely — open sky, nothing to
@@ -710,19 +920,25 @@ export default function MountSinai() {
           return;
         }
         const naturalY = Math.min(nh - 1, Math.max(0, Math.round(v * nh)));
-        const rowOffset = naturalY * nw * 4;
-        let minX = -1;
-        let maxX = -1;
-        for (let x = 0; x < nw; x++) {
-          if (alpha.data[rowOffset + x * 4 + 3] > 20) {
-            if (minX === -1) minX = x;
-            maxX = x;
+        let edges = edgeCache.get(naturalY);
+        if (edges === undefined) {
+          const rowOffset = naturalY * nw * 4;
+          let minX = -1;
+          let maxX = -1;
+          for (let x = 0; x < nw; x++) {
+            if (alpha.data[rowOffset + x * 4 + 3] > 20) {
+              if (minX === -1) minX = x;
+              maxX = x;
+            }
           }
+          edges = minX === -1 ? null : { minX, maxX };
+          edgeCache.set(naturalY, edges);
         }
-        if (minX === -1) {
+        if (!edges) {
           overlay.style.background = "none";
           return;
         }
+        const { minX, maxX } = edges;
         const leftEdge = ox + minX * fit;
         const rightEdge = ox + maxX * fit;
         // Eased, not linear, over that span — the same smoothstep-style
@@ -917,13 +1133,13 @@ export default function MountSinai() {
       </svg>
       {/* Resting stack: verses barely there, mountain held back. */}
       <div className="ms-plate">
-        {/* Not hebrew-mask-fade: that class's fixed-pixel fade exists for
-            the hero's bottom nav specifically (see its rule in
-            globals.css). This section's own boundary — the mountain's
-            foot, not a fixed distance from the section's — is the
-            `.ms-field .ms-hebrew` rule below it, which higher specificity
-            already made the effective one; carrying the unused class
-            here just left a dead, misleading pairing between the two. */}
+        {/* Not hebrew-mask-fade: this section measures its own boundary
+            (--ms-foot, set in placeFoot() below) rather than sharing the
+            hero's --hero-foot, since each is canvas-measured against a
+            different NameMark instance in a different section. Both
+            classes' fade shape is kept identical in globals.css so the
+            two read as the same rule even though each references its
+            own variable — see `.ms-field .ms-hebrew` below. */}
         <div className="ms-hebrew">
           <HebrewWatermark />
         </div>

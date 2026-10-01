@@ -24,6 +24,10 @@ export const WORK_MEDIA: Record<
   string,
   { hero: WorkImage; collage: WorkImage[] }
 > = {
+  "tv-tech-info-screen": {
+    hero: { src: "/work/tv-tech-info-screen/hero.jpg", alpha: false, w: 1800, h: 1253 },
+    collage: [],
+  },
   "interax": {
     hero: { src: "/work/interax/hero.jpg", alpha: false, w: 1800, h: 1260 },
     collage: [

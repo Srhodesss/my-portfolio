@@ -58,9 +58,29 @@ const TOOL = {
   grasshopper: { name: "Grasshopper", icon: "/logos/Rhino.png" },
   illustrator: { name: "Illustrator", icon: "/logos/Adobe-Illustrator.png" },
   powerpoint: { name: "PowerPoint", icon: "/logos/PowerPoint.png" },
+  analytics: { name: "Adobe Analytics", icon: "/logos/Adobe-Analytics.png" },
+  tableau: { name: "Tableau", icon: "/logos/Tableau.png" },
 } as const;
 
 export const WORK_META: Record<string, WorkMeta> = {
+  "tv-tech-info-screen": {
+    navLabel: "Tech Info Screen",
+    year: "Apr 2026",
+    module: "NBCUniversal · Hayu Connected TV",
+    summary:
+      "CTV users who hit a playback or account error have no quick way to give support the details it needs: device, app version, error codes. The Tech Info Screen is a self-service page under My Account that surfaces exactly that, with a QR code to the help centre, so an issue gets resolved without a slow back and forth over a remote.",
+    skills: [
+      "Product Management",
+      "Product Design",
+      "User Research",
+      "Competitor Analysis",
+      "Analytics",
+      "Cross Team Delivery",
+    ],
+    tools: [TOOL.figma, TOOL.analytics, TOOL.tableau],
+    role: "Owned end to end at NBCUniversal for Hayu's connected-TV app. As designer I ran competitor analysis and moderated interviews with subscribers in three markets; as PM I ran kickoff, tracked delivery across the mobile, TV and backend teams, and monitored analytics after launch.",
+    links: [{ label: "View case study", href: "/work/tv-tech-info-screen/deck" }],
+  },
   interax: {
     navLabel: "Interax",
     year: "Mar 2025",

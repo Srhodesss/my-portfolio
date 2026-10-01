@@ -7,13 +7,6 @@ import { getProject, projects } from "@/lib/projects";
 
 type Params = { slug: string };
 
-/**
- * Projects whose portfolio PDF is the case study are shown as a deck
- * (see components/CaseDeck) rather than a bespoke page. Interax moved to
- * this treatment so every project reads and is indexed the same way.
- */
-const RICH_STUDIES: Record<string, () => React.ReactNode> = {};
-
 /* Projects whose portfolio PDF *is* the case study: the page shows the
    same flick-through deck the other projects use, indexed by the section
    titles read from the top of each page. */
@@ -46,14 +39,17 @@ export default async function CaseStudyPage({
   const slug = (await params).slug;
   const project = getProject(slug);
   if (!project) notFound();
-  const rich = RICH_STUDIES[slug];
   const deck = CASE_DECKS[slug];
-  if (!rich && deck && DECK_AS_CASE_STUDY.has(slug)) {
+  if (deck && DECK_AS_CASE_STUDY.has(slug)) {
     return (
       <main>
         <CaseDeck title={project.title} slug={slug} deck={deck} />
       </main>
     );
   }
-  return <main>{rich ? rich() : <CaseStudyLayout project={project} />}</main>;
+  return (
+    <main>
+      <CaseStudyLayout project={project} />
+    </main>
+  );
 }
