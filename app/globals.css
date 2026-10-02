@@ -124,14 +124,6 @@ html.reveal-ready [data-reveal].is-in {
 
 /* Steady (non-blinking) caret after the cycling role word — the hero's
    single orange accent. */
-.role-caret {
-  display: inline-block;
-  width: 0.09em;
-  height: 1.05em;
-  margin-left: 0.14em;
-  vertical-align: -0.16em;
-  background: var(--accent);
-}
 
 /* Hero glyph field: eased return for the repulsion displacement.
 
@@ -156,9 +148,6 @@ html.reveal-ready [data-reveal].is-in {
    promotion hints were. A transition is not a layer request; it only
    promotes the handful of words actually mid-transition near the cursor,
    which is the behaviour this always wanted. */
-.glyph-hint .glyph-item {
-  will-change: transform;
-}
 
 @media (prefers-reduced-motion: reduce) {
   .glyph-item {
@@ -820,9 +809,6 @@ html:not(.intro-active) .scripture-intro:not([data-mounted]) {
   font-style: italic;
 }
 
-.scripture-ref {
-  font-family: var(--font-reference), ui-sans-serif, system-ui, sans-serif;
-}
 
 .hebrew-texture {
   font-family: "Hebrew Background", serif;
@@ -914,83 +900,13 @@ html:not(.intro-active) .scripture-intro:not([data-mounted]) {
 
 /* ------------------------------------------------------------------ */
 /* Case study — long-form story                                        */
-/* ------------------------------------------------------------------ */
-.cs-section {
-  padding-block: clamp(72px, 12vh, 160px);
-}
 
 /* Research/insight interlude: a deliberate light, report-like inversion
    of the dark site, in the Interax palette (navy / lime / off-white). */
-.cs-interlude {
-  --il-bg: #f4f6f3;
-  --il-navy: #17313d;
-  --il-lime: #a9c93f;
-  background: var(--il-bg);
-  color: var(--il-navy);
-}
-.cs-interlude ::selection {
-  background: var(--il-navy);
-  color: var(--il-bg);
-}
-.cs-interlude .cs-eyebrow {
-  color: color-mix(in srgb, var(--il-navy) 55%, transparent);
-}
-.cs-il-card {
-  border-radius: 14px;
-  background: #fff;
-  border: 1px solid color-mix(in srgb, var(--il-navy) 12%, transparent);
-  box-shadow: 0 10px 30px rgba(23, 49, 61, 0.06);
-}
-.cs-il-card-navy {
-  border-radius: 14px;
-  background: var(--il-navy);
-  color: #fff;
-}
-.cs-il-tag {
-  display: inline-block;
-  border-radius: 6px 6px 0 0;
-  background: var(--il-lime);
-  color: var(--il-navy);
-  font-weight: 600;
-  font-size: 13px;
-  letter-spacing: 0.02em;
-  padding: 4px 12px;
-}
-.cs-il-rule {
-  height: 2px;
-  background: var(--il-lime);
-}
 
-/* Embeds (LinkedIn / Figma) */
-.cs-embed {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: #000;
-  overflow: hidden;
-}
-.cs-embed iframe {
-  display: block;
-  width: 100%;
-  border: 0;
-}
 
 /* Double Diamond — strokes draw / phases light in sequence on scroll.
    Base state is fully drawn so no-JS and reduced motion show it whole. */
-.dd-phase {
-  transition:
-    opacity 0.5s ease,
-    color 0.5s ease;
-}
-.dd-diamond path {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 0;
-}
-@media (prefers-reduced-motion: reduce) {
-  .dd-phase {
-    opacity: 1 !important;
-    transition: none;
-  }
-}
 
 /* About — Anime.js split reveals. The pre-animation hidden state is gated
    on `about-live`, which only JS adds (and never under reduced motion),
@@ -1168,25 +1084,7 @@ html.reveal-ready [data-reveal-text].is-in .rt-inner {
   }
 }
 
-/* Case-study card reveals: 750ms, staggered down the grid. The shared
-   observer adds `.is-in` per card; these delays make the cascade
-   deterministic rather than dependent on intersection order. */
-html.reveal-ready .cs-stagger [data-reveal] {
-  transition-duration: 750ms;
-}
-html.reveal-ready .cs-stagger > [data-reveal]:nth-child(1) { transition-delay: 0ms; }
-html.reveal-ready .cs-stagger > [data-reveal]:nth-child(2) { transition-delay: 90ms; }
-html.reveal-ready .cs-stagger > [data-reveal]:nth-child(3) { transition-delay: 180ms; }
-html.reveal-ready .cs-stagger > [data-reveal]:nth-child(4) { transition-delay: 270ms; }
-html.reveal-ready .cs-stagger > [data-reveal]:nth-child(5) { transition-delay: 360ms; }
-html.reveal-ready .cs-stagger > [data-reveal]:nth-child(6) { transition-delay: 450ms; }
 
-@media (prefers-reduced-motion: reduce) {
-  .cs-stagger [data-reveal] {
-    transition: none !important;
-    transition-delay: 0ms !important;
-  }
-}
 
 /* ------------------------------------------------------------------ */
 /* Embla — PDF deck                                                    */
