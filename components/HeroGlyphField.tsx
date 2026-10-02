@@ -199,35 +199,18 @@ export default function HeroGlyphField({
       );
     }
 
-    /* Default is now what ?glyph=nohint proved smooth: the repulsion runs
-       and the eased return stays, but the 1,472 will-change hints do not
-       ship. They are opt-in via ?glyph=hint (the old default) purely so
-       the two can still be compared.
-
-         (default)      repulsion + eased return, no promotion hints
-         ?glyph=hint    ...plus will-change on every word (old default)
-         ?glyph=nohint  repulsion only — no transition, no hints
-         ?glyph=off     effect never binds at all
-
-       Decided at load, deliberately: toggling these on a live page
-       mutates ~1,500 elements underneath a ScrollTrigger pin that
-       measured its bounds on load and is not told to re-measure, which is
-       its own artefact and not what is being tested. */
-    const glyphParam = new URLSearchParams(window.location.search).get("glyph");
-    if (!reduced && fine && glyphParam !== "off") {
+    /* The repulsion runs with the eased return, and without the ~1,472
+       will-change hints the old default shipped. A ?glyph= switch used to
+       select between those variants while that was being measured; the
+       question is settled, so the winner is simply what runs. */
+    if (!reduced && fine) {
       // Marks this field as the one that actually gets transforms written
       // to its words, so .glyph-item's transition can be scoped to it —
       // see the rule in globals.css for why that matters (every other
       // watermark copy on the page carried the same styling for a
       // transform it never receives).
-      if (glyphParam !== "nohint") {
-        field.classList.add("glyph-live");
-        cleanups.push(() => field.classList.remove("glyph-live"));
-      }
-      if (glyphParam === "hint") {
-        field.classList.add("glyph-hint");
-        cleanups.push(() => field.classList.remove("glyph-hint"));
-      }
+      field.classList.add("glyph-live");
+      cleanups.push(() => field.classList.remove("glyph-live"));
       const rows = Array.from(field.querySelectorAll<HTMLElement>(".wm-row"));
       const words = Array.from(
         field.querySelectorAll<HTMLElement>(".glyph-item"),

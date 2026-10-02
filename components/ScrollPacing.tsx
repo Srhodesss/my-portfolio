@@ -75,7 +75,8 @@ function setMultipliers(lenis: unknown, wheel: number, touch: number) {
 
    UNVERIFIED, and weaker-founded than the rest: whether Lenis re-reads
    options.lerp per frame rather than caching it is not something reading
-   this file settles. `?pinlerp=off` opts out for a trace. */
+   this file settles. (A ?pinlerp=off switch used to opt out for a trace;
+   removed with the rest of the finished A/B hatches.) */
 function setLerp(lenis: unknown, lerp: number) {
   (lenis as LenisLike).options.lerp = lerp;
 }
@@ -138,10 +139,7 @@ export default function ScrollPacing() {
 
     // See setLerp above. #work is not in the desktop slow-section list, so
     // it needs its own handle rather than riding on the `hit` below.
-    const pinLerp =
-      document.documentElement.classList.contains("wk") &&
-      new URLSearchParams(window.location.search).get("pinlerp") !== "off";
-    const workEl = pinLerp
+    const workEl = document.documentElement.classList.contains("wk")
       ? document.querySelector<HTMLElement>("#work")
       : null;
     let liveLerp: number | null = null;
