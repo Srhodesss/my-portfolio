@@ -302,7 +302,11 @@ export default function CustomCursor() {
     let peakY = Number.NaN;
     const onPeakGeometryChange = () => {
       if (peakRaf) return;
-      if (window.scrollY === peakY) return;
+      // The position guard may not suppress a refresh while the cached
+      // rect is unusable, or a bad reading taken at one offset would
+      // survive every future visit to that same offset.
+      const usable = !!peakRect && !!peakRect.width && !!peakRect.height;
+      if (usable && window.scrollY === peakY) return;
       peakRaf = requestAnimationFrame(() => {
         peakRaf = 0;
         peakY = window.scrollY;
@@ -336,7 +340,18 @@ export default function CustomCursor() {
     // this always agrees with wherever the picture actually is.
     const overPeak = () => {
       if (px < 0) return false;
-      if (!peakRect) refreshPeakRect(); // self-heals if MountSinai mounted later
+      // Self-heal from an UNUSABLE rect, not merely a missing one. This
+      // used to test `!peakRect`, so it recovered when MountSinai had not
+      // mounted yet but never when a zero-sized rect had been cached —
+      // and that is a state this actually reaches: .ms-peak measures 0x0
+      // whenever the closing field is hidden (visibility:hidden at the
+      // top of the page) or placePeak has not run because .ms-live is not
+      // applied. Caching one left peakRect non-null but useless, so the
+      // heal never fired and "Top" stayed dead. Combined with the
+      // scroll-position guard on the refresh below, returning to the same
+      // scroll offset the bad rect was cached at meant it never refreshed
+      // either — which is "works once, then never again".
+      if (!peakRect || !peakRect.width || !peakRect.height) refreshPeakRect();
       if (!peakRect || !peakRect.width || !peakRect.height) return false;
       return (
         px >= peakRect.left &&
