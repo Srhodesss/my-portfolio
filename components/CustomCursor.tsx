@@ -74,6 +74,19 @@ export default function CustomCursor() {
       document.documentElement.classList.toggle("cursor-off", !shown);
     };
 
+    /* Self-healing, so suppression never depends on having enumerated
+       every way it can be released. Wired to scroll and pointerover
+       below (both already fire for the WebKit redraw nudge): if the
+       pointer is demonstrably inside the document, assert suppression
+       again rather than waiting for a mouse move that may never come
+       while the reader is only scrolling. */
+    const reassertIfInside = () => {
+      if (cursorShown) return;
+      if (!document.documentElement.matches(":hover")) return;
+      setCursorShown(true);
+      gsap.to(ring, { autoAlpha: 1, duration: 0.2, overwrite: "auto" });
+    };
+
     // Confirmed WebKit bug (bugs.webkit.org #14344/#53341/#101857):
     // Safari doesn't redraw the native cursor icon on a CSS `cursor`
     // change alone — only an actual pointer move does, unlike Chromium,
@@ -118,6 +131,10 @@ export default function CustomCursor() {
     const isWebKit = document.documentElement.classList.contains("wk");
     if (isWebKit) {
       window.addEventListener("scroll", keepCursorHidden, { passive: true });
+      window.addEventListener("scroll", reassertIfInside, { passive: true });
+      document.addEventListener("pointerover", reassertIfInside, {
+        passive: true,
+      });
       /* Scroll is only one way the element under a stationary pointer
          changes. A route change, an overlay opening, a pinned section
          releasing, or any reflow does it too — and each one is another
@@ -373,10 +390,25 @@ export default function CustomCursor() {
     };
     stateRaf = requestAnimationFrame(syncState);
 
-    const onLeave = () => {
+    /* Only a GENUINE exit from the window may hand the native cursor
+       back. pointerleave on the root also fires while the pointer is
+       still inside the document whenever the element under it is removed
+       or replaced — which is what a route change, an overlay opening and
+       scrolling content past a stationary pointer all do. Releasing
+       suppression on those drew the OS arrow and left it there until the
+       next real mouse move, which is why this reappeared "at
+       unpredictable moments" and specifically on scroll.
+       A real exit has no relatedTarget (the pointer went to browser
+       chrome or off-screen) and leaves the root no longer matching
+       :hover. Either one still pointing inside means stay suppressed. */
+    const pointerStillInside = (e: PointerEvent) =>
+      !!e.relatedTarget || document.documentElement.matches(":hover");
+    const onLeave = (e: PointerEvent) => {
+      if (pointerStillInside(e)) return;
       gsap.to(ring, { autoAlpha: 0, duration: 0.25 });
       setCursorShown(false);
     };
+
 
     // Click to travel back to the top — but only while the cursor is
     // actually showing "Top". This used to also fire on any click
@@ -406,6 +438,8 @@ export default function CustomCursor() {
       document.removeEventListener("click", onClick);
       document.documentElement.removeEventListener("pointerleave", onLeave);
       window.removeEventListener("scroll", keepCursorHidden);
+      window.removeEventListener("scroll", reassertIfInside);
+      document.removeEventListener("pointerover", reassertIfInside);
       document.removeEventListener("pointerover", keepCursorHidden);
       cancelAnimationFrame(cursorNudge);
       window.removeEventListener("scroll", onScrolled);
