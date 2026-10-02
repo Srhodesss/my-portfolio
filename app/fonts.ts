@@ -8,6 +8,20 @@
  *
  * The Hebrew background face (Gveret Levin, raw-assets/bible-verse-intro/) is
  * loaded via @font-face in globals.css from /fonts/hebrew-background.ttf.
+ *
+ * All faces use `display: "block"`, not "swap". Swap paints a fallback on
+ * the first frame and replaces it when the real face arrives, and the two
+ * have different metrics — so descenders (f, g) were clipping and then
+ * completing a moment later, visible in the scripture verse, the hero's
+ * "Engineering products that move people forward" and the pill
+ * definitions. The clipping rather than mere shifting comes from the
+ * masked inline-block word wrappers those three share (.rt-word,
+ * .skill-word-mask): a line box sized to the fallback crops the real
+ * face's descenders until the reflow lands.
+ * `block` holds the glyphs invisible instead of showing the wrong ones.
+ * next/font self-hosts and preloads these, so that wait is a frame or
+ * two — the same trade the Hebrew face already makes in globals.css,
+ * for the same reason.
  */
 import {
   Instrument_Sans,
@@ -27,7 +41,7 @@ import localFont from "next/font/local";
 export const primarySans = Instrument_Sans({
   subsets: ["latin"],
   variable: "--font-primary",
-  display: "swap",
+  display: "block",
 });
 
 /**
@@ -39,7 +53,7 @@ export const displaySerif = Instrument_Serif({
   weight: "400",
   style: "italic",
   variable: "--font-display-serif",
-  display: "swap",
+  display: "block",
 });
 
 /**
@@ -51,7 +65,7 @@ export const scriptureFace = Playfair_Display({
   weight: "400",
   style: "italic",
   variable: "--font-scripture",
-  display: "swap",
+  display: "block",
 });
 
 /**
@@ -62,7 +76,7 @@ export const referenceFace = DM_Sans({
   subsets: ["latin"],
   weight: "500",
   variable: "--font-reference",
-  display: "swap",
+  display: "block",
 });
 
 /**
@@ -84,5 +98,5 @@ export const referenceFace = DM_Sans({
 export const imperialAramaic = localFont({
   src: "../Noto_Sans_Imperial_Aramaic/NotoSansImperialAramaic-Regular.ttf",
   variable: "--font-imperial-aramaic",
-  display: "swap",
+  display: "block",
 });

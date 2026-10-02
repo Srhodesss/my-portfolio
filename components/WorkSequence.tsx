@@ -500,15 +500,33 @@ export default function WorkSequence() {
           slots[setLen].getBoundingClientRect().left -
           slots[0].getBoundingClientRect().left;
         if (!(shift > 0)) return;
+        /* The seam. `repeat: -1` on a fromTo does not loop a value, it
+           RESTARTS a tween: at the end of each cycle GSAP tears the tween
+           back to its start, re-records the start value and begins again.
+           -shift and 0 are the same position visually, so the jump itself
+           is invisible, but the restart costs a frame of bookkeeping and
+           that is the stutter — once per cycle, always at the same point.
+           A modifier makes the rendered value continuous instead: x keeps
+           climbing and is wrapped into the row's own [-shift, 0] range on
+           the way out, so whatever the tween does at its boundary never
+           reaches the screen. This is GSAP's documented seamless-loop
+           pattern, not a workaround.
+           Both directions traverse the same range, so one wrap serves
+           both; the relative "+=" / "-=" keeps each row's direction. */
+        const wrapX = (v: number) => {
+          const m = v % shift;
+          return m > 0 ? m - shift : m;
+        };
         marqueeRef.current.push(
           gsap.fromTo(
             row,
             { x: i % 2 ? -shift : 0 },
             {
-              x: i % 2 ? 0 : -shift,
+              x: i % 2 ? `+=${shift}` : `-=${shift}`,
               duration: shift / SPEED,
               ease: "none",
               repeat: -1,
+              modifiers: { x: gsap.utils.unitize(wrapX) },
             },
           ),
         );
@@ -957,16 +975,38 @@ export default function WorkSequence() {
     let navigating = false;
     const openDurationMs =
       (SPRING_IN.duration + Math.max(0, docs.length - 1) * 0.028) * 1000 + 40;
+    /* Navigation used to wait for the ENTIRE open animation — 600ms with
+       six docs — before router.push even started, and only then did the
+       route begin fetching. The animation is playing throughout, so the
+       folder is not frozen, but the gap between the click and anything
+       happening in the page is the whole animation plus the route load
+       stacked end to end, which is what reads as a delayed response.
+       Overlapped instead: the push fires just past the spring's own
+       settle, while the docs are still easing into place, so the route
+       loads UNDER the tail of the animation rather than after it. The
+       ratio is deliberately not 0 — cutting straight to the push loses
+       the open entirely, which is the bug this delay was added to fix. */
+    const NAV_AT = 0.45;
     const onFrontClick = (e: MouseEvent) => {
       if (navigating) return;
       e.preventDefault();
       navigating = true;
       calibrate();
       settle(true);
-      navigateTimer = window.setTimeout(() => {
-        router.push("/work");
-      }, openDurationMs);
+      navigateTimer = window.setTimeout(
+        () => {
+          router.push("/work");
+        },
+        Math.round(openDurationMs * NAV_AT),
+      );
     };
+    /* And give the route a head start. Prefetching on the hover that
+       precedes almost every click means the push above usually resolves
+       from cache instead of starting a fetch — the half of the delay
+       that is not animation. Idempotent in Next, so repeated hovers
+       cost nothing. */
+    const prefetchWork = () => router.prefetch("/work");
+    front.addEventListener("pointerenter", prefetchWork);
     front.addEventListener("click", onFrontClick);
 
     return () => {
@@ -977,6 +1017,7 @@ export default function WorkSequence() {
         folder.removeEventListener("pointerup", onUp);
       }
       front.removeEventListener("click", onFrontClick);
+      front.removeEventListener("pointerenter", prefetchWork);
       window.clearTimeout(navigateTimer);
       gsap.killTweensOf([folder, front, ...docs, ...(caption ? [caption] : [])]);
       root.classList.remove("spring-on");

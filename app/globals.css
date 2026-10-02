@@ -293,35 +293,20 @@ html.reveal-ready [data-reveal].is-in {
    HebrewWatermark.tsx), keeping the staggered texture exactly as it
    looks today. The hero and the scripture intro are untouched and still
    drift. */
-.ms-field {
-  /* How much slower than the hero's drift this section's moving rows run.
-     Worth knowing which of the two dials here is the expensive one: a
-     transform animation costs the same per frame whatever its speed, so
-     SPEED IS FREE and only the ROW COUNT below is not. The earlier pass
-     cut both at once (12 rows -> 6, and 3x slower) and overshot into
-     reading static; the row count is what bought the performance, so it
-     stays at 6 and this comes back up. 3 -> 1.5 doubles the apparent
-     motion at identical cost: 210-309s per cycle against the hero's
-     140-206s. Turn this down toward 1 for more life, still for free. */
-  --wm-slow: 1.5;
-}
+/* The closing section's verses now run exactly as the hero's do: all
+   twelve rows, at the hero's own durations. --wm-slow is left at its
+   default of 1 (see HebrewWatermark.tsx) and nothing is paused here.
 
-.ms-field .wm-row {
-  animation-play-state: paused;
-}
+   This deliberately gives back the drift optimisation. For the record,
+   because it was measured rather than assumed: a Safari trace parked on
+   the bottom hero with zero scroll showed Composite firing continuously
+   at ~90-100ms intervals with all twelve rows drifting, and freezing
+   them dropped that to two Composite bars in five seconds. Thinning to
+   six rows was the compromise. Consistency with the hero was chosen over
+   that, knowingly — if the bottom hero judders again, this rule is the
+   first place to look, and `.ms-field { --wm-slow: 1.5 }` plus a
+   `:nth-child(2n + 1)` pause is how it was. */
 
-/* ...except every third one, which keeps moving. A full freeze measured
-   well (Composite went from continuous to two bars in five seconds) but
-   read as dead rather than calm, which is not what Closing.tsx is asking
-   for — "holds still" there means unhurried, not inert.
-   Every third row rather than every second: 3n+1 lands on rows 1, 4, 7
-   and 10, which is a third of the animated area, spreads the movement
-   through the field instead of banding it, and — because direction
-   alternates on the row index — still gives two rows drifting each way,
-   so the field counter-moves against itself rather than sliding. */
-.ms-field .wm-row:nth-child(2n + 1) {
-  animation-play-state: running;
-}
 
 /* Out-of-view sections stop paying for their own decoration. See
    AnimationGate.tsx for the trace this came from: 67 concurrent infinite
