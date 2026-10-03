@@ -559,7 +559,31 @@ html.reveal-ready [data-reveal].is-in {
 @media (pointer: fine) and (prefers-reduced-motion: no-preference) {
   html:not(.cursor-off),
   html:not(.cursor-off) * {
-    cursor: none !important;
+    /* A fully transparent 32x32 image, with `none` behind it as the
+       fallback every other engine takes.
+
+       `none` alone is correct and was never the problem: instrumented
+       live across hydration, pointer movement, scroll and state changes,
+       `cursor-off` is removed exactly once on the first pointermove and
+       never re-added, and getComputedStyle(html).cursor reads "none"
+       throughout. Three previous passes all fixed the class layer, which
+       was already working.
+
+       What that leaves is WebKit drawing the arrow anyway: it does not
+       redraw the cursor on a CSS change alone, only on real pointer
+       input (bugs.webkit.org 14344 / 53341 / 101857), and a synthetic
+       mousemove cannot help because it never moves the actual OS
+       pointer, so the hit-test that would re-read this never runs.
+
+       An image cursor sidesteps that entirely — it goes through the
+       normal custom-cursor path rather than the lazily-redrawn `none`
+       keyword, so there is nothing for WebKit to defer. 32x32 rather
+       than 1x1 because some platforms substitute a default for a cursor
+       image too small to draw. */
+    cursor:
+      url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAGklEQVR42u3BAQEAAACCIP+vbkhAAQAAAO8GECAAAcm1w7EAAAAASUVORK5CYII=")
+        0 0,
+      none !important;
   }
 }
 
@@ -939,9 +963,15 @@ html:not(.intro-active) .scripture-intro:not([data-mounted]) {
   display: inline-block;
   overflow: hidden;
   vertical-align: bottom;
-  /* Descender room so the mask never clips g/y/p. */
-  padding-bottom: 0.14em;
-  margin-bottom: -0.14em;
+  /* Descender room so the mask never clips g/y/p. Measured rather than
+     guessed: this was 0.14em, but the faces actually used here report a
+     fontBoundingBoxDescent of 0.255em (Instrument Sans at the skill size)
+     to 0.321em (the quote face) — under half the deepest descender, so
+     the mask cut into g/y/p/j by ~3px at 43px type. 0.33em clears the
+     deepest with a little margin. The negative margin cancels it for
+     layout, so nothing below moves. */
+  padding-bottom: 0.33em;
+  margin-bottom: -0.33em;
   /* Round terminal letters (s, e, o, c...) are drawn with a slight
      optical overshoot past their own advance width — normally
      imperceptible, but negative tracking (several headings use
@@ -1323,8 +1353,15 @@ html.reveal-ready [data-reveal-text].is-in .rt-inner {
   display: inline-block;
   overflow: hidden;
   vertical-align: bottom;
-  padding-bottom: 0.14em;
-  margin-bottom: -0.14em;
+  /* Descender room so the mask never clips g/y/p. Measured rather than
+     guessed: this was 0.14em, but the faces actually used here report a
+     fontBoundingBoxDescent of 0.255em (Instrument Sans at the skill size)
+     to 0.321em (the quote face) — under half the deepest descender, so
+     the mask cut into g/y/p/j by ~3px at 43px type. 0.33em clears the
+     deepest with a little margin. The negative margin cancels it for
+     layout, so nothing below moves. */
+  padding-bottom: 0.33em;
+  margin-bottom: -0.33em;
 }
 
 .skill-word {
