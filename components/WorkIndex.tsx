@@ -265,15 +265,63 @@ export default function WorkIndex() {
     // here is ~17 characters, so this clears it with room.
     const HOLD_MS = 900;
 
+    /* Interax is the one project with two destinations — a live prototype
+       and a written case study — so its nudge relays between them rather
+       than lifting both at once, which read as one wide flicker. The
+       prototype goes first because it is the thing worth trying; the case
+       study follows as the first wave starts easing back out, so they
+       read as one continuous relay rather than two separate events.
+
+       It also repeats, because two CTAs take longer to notice than one —
+       but on a timer with an end, not indefinitely: every 5s for 20s of
+       continuous dwelling, then silence. Scrolling resets the clock. */
+    const SEQUENCED = active === "interax";
+    const CYCLE_MS = 5000;
+    const MAX_DWELL_MS = 20000;
+    // Second CTA starts as the first begins its return, so the relay is
+    // continuous rather than gapped.
+    const SEQ_GAP_MS = HOLD_MS;
+
+    // Prototype first regardless of markup order, so this does not depend
+    // on how the links happen to be listed in work-meta.
+    const ordered = SEQUENCED
+      ? [...ripples].sort(
+          (a, b) =>
+            (/prototype/i.test(a.textContent || "") ? 0 : 1) -
+            (/prototype/i.test(b.textContent || "") ? 0 : 1),
+        )
+      : ripples;
+
     let dwell = 0;
-    let hold = 0;
     let fired = false;
+    let timers: number[] = [];
+    const after = (ms: number, fn: () => void) => {
+      timers.push(window.setTimeout(fn, ms));
+    };
+    const dropTimers = () => {
+      timers.forEach((t) => window.clearTimeout(t));
+      timers = [];
+    };
     const clear = () => ripples.forEach((r) => r.classList.remove("ripple-on"));
+    const pulse = (el: HTMLElement) => {
+      el.classList.add("ripple-on");
+      after(HOLD_MS, () => el.classList.remove("ripple-on"));
+    };
+
     const play = () => {
+      if (SEQUENCED) {
+        const startedAt = Date.now();
+        const cycle = () => {
+          if (Date.now() - startedAt >= MAX_DWELL_MS) return;
+          ordered.forEach((el, i) => after(i * SEQ_GAP_MS, () => pulse(el)));
+          after(CYCLE_MS, cycle);
+        };
+        cycle();
+        return;
+      }
       if (fired) return;
       fired = true;
-      ripples.forEach((r) => r.classList.add("ripple-on"));
-      hold = window.setTimeout(clear, HOLD_MS);
+      ordered.forEach(pulse);
     };
     const arm = () => {
       window.clearTimeout(dwell);
@@ -281,7 +329,7 @@ export default function WorkIndex() {
     };
     const onScroll = () => {
       fired = false;
-      window.clearTimeout(hold);
+      dropTimers();
       clear();
       arm();
     };
@@ -289,7 +337,7 @@ export default function WorkIndex() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       window.clearTimeout(dwell);
-      window.clearTimeout(hold);
+      dropTimers();
       window.removeEventListener("scroll", onScroll);
       clear();
     };
