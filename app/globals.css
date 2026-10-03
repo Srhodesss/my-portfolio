@@ -1758,7 +1758,12 @@ html.reveal-ready [data-reveal-text].is-in .rt-inner {
   /* Per-character delay is set inline. */
 }
 
+/* `.ripple-on` drives the identical wave from a class, so the dwell nudge
+   in WorkIndex can play exactly what hover plays — same delays, same
+   easing, same return — rather than a second animation that would drift
+   out of step with it. */
 .group:hover .ripple-ch,
+.ripple-text.ripple-on .ripple-ch,
 .ripple-text:hover .ripple-ch,
 a:hover > .ripple-text .ripple-ch,
 button:hover > .ripple-text .ripple-ch {
@@ -1772,6 +1777,7 @@ button:hover > .ripple-text .ripple-ch {
   }
 
   .group:hover .ripple-ch,
+  .ripple-text.ripple-on .ripple-ch,
   .ripple-text:hover .ripple-ch,
   a:hover > .ripple-text .ripple-ch,
   button:hover > .ripple-text .ripple-ch {
@@ -1796,6 +1802,7 @@ button:hover > .ripple-text .ripple-ch {
    baseline while the whole word rose past it, so the two halves of the
    CTA came apart mid-hover. */
 .group:hover .ripple-arrow,
+.ripple-text.ripple-on .ripple-arrow,
 .ripple-text:hover .ripple-arrow,
 a:hover > .ripple-text .ripple-arrow,
 button:hover > .ripple-text .ripple-arrow {
@@ -1804,6 +1811,7 @@ button:hover > .ripple-text .ripple-arrow {
 
 /* Same lift, plus the extra rise that makes the diagonal read as one. */
 .group:hover .ripple-arrow-diagonal,
+.ripple-text.ripple-on .ripple-arrow-diagonal,
 .ripple-text:hover .ripple-arrow-diagonal,
 a:hover > .ripple-text .ripple-arrow-diagonal,
 button:hover > .ripple-text .ripple-arrow-diagonal {
@@ -1816,6 +1824,7 @@ button:hover > .ripple-text .ripple-arrow-diagonal {
   }
 
   .group:hover .ripple-arrow,
+  .ripple-text.ripple-on .ripple-arrow,
   .ripple-text:hover .ripple-arrow,
   a:hover > .ripple-text .ripple-arrow,
   button:hover > .ripple-text .ripple-arrow,

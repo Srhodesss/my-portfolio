@@ -236,6 +236,65 @@ export default function WorkIndex() {
     return () => io.disconnect();
   }, []);
 
+  /* Passive nudge: stop on a project for a beat and its CTA plays the
+     same ripple hover does. Touch has no hover at all, so without this
+     the wave is invisible on a phone — and on desktop it points at the
+     one thing on the row that goes anywhere.
+
+     Keyed on `active`, the section the observer above says is in view,
+     so changing project tears this down and re-arms it for the new one.
+     `fired` keeps it to once per dwell rather than a loop while the
+     reader sits still; any scroll clears it, so stopping again plays it
+     again. The class is removed after the wave has travelled so the
+     characters ease back out exactly as they do when a pointer leaves —
+     leaving it on would park them lifted. */
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const section = document.getElementById(active);
+    const ripples = section
+      ? Array.from(
+          section.querySelectorAll<HTMLElement>(".wi-links .ripple-text"),
+        )
+      : [];
+    if (!ripples.length) return;
+
+    // Long enough to read as "they have stopped", not a pause mid-scroll.
+    const DWELL_MS = 2000;
+    // The wave is per-character (RippleText's 26ms step) plus the arrow one
+    // step past the end, plus the 0.36s transition it rides. Longest label
+    // here is ~17 characters, so this clears it with room.
+    const HOLD_MS = 900;
+
+    let dwell = 0;
+    let hold = 0;
+    let fired = false;
+    const clear = () => ripples.forEach((r) => r.classList.remove("ripple-on"));
+    const play = () => {
+      if (fired) return;
+      fired = true;
+      ripples.forEach((r) => r.classList.add("ripple-on"));
+      hold = window.setTimeout(clear, HOLD_MS);
+    };
+    const arm = () => {
+      window.clearTimeout(dwell);
+      dwell = window.setTimeout(play, DWELL_MS);
+    };
+    const onScroll = () => {
+      fired = false;
+      window.clearTimeout(hold);
+      clear();
+      arm();
+    };
+    arm();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.clearTimeout(dwell);
+      window.clearTimeout(hold);
+      window.removeEventListener("scroll", onScroll);
+      clear();
+    };
+  }, [active]);
+
   /* A considered per-section entrance: the header settles first, then the
      fields, links and hero image follow in a short staggered sequence —
      so moving between projects reads as a composed transition rather than
@@ -568,7 +627,7 @@ export default function WorkIndex() {
                           href={l.href}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="group inline-flex items-baseline text-body-s font-medium"
+                          className="group inline-flex items-baseline text-body-m font-medium"
                         >
                           <RippleText arrow="diagonal">{l.label}</RippleText>
                         </a>
@@ -576,7 +635,7 @@ export default function WorkIndex() {
                         <Link
                           key={l.label}
                           href={l.href}
-                          className="group inline-flex items-baseline text-body-s font-medium"
+                          className="group inline-flex items-baseline text-body-m font-medium"
                         >
                           <RippleText arrow="right">{l.label}</RippleText>
                         </Link>
