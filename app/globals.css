@@ -935,6 +935,30 @@ html:not(.intro-active) .scripture-intro:not([data-mounted]) {
 /* About — Anime.js split reveals. The pre-animation hidden state is gated
    on `about-live`, which only JS adds (and never under reduced motion),
    so no-JS and reduced-motion visitors always see sharp, static copy. */
+/* The quote's word and character pieces are animated individually
+   (opacity + transform, per piece), which can give each one its own
+   compositor layer — and a layer's texture is the BORDER BOX, not the
+   ink. Measured here: the word span's box is 37px while the face draws
+   45px of ascent+descent at this size, so 8px of ink sat outside the
+   box and was sliced off for as long as the piece had its own layer,
+   completing only once the layer was discarded. That is the thin cut
+   seen on the top of an f and the tail of a g.
+
+   Nothing clips these in CSS — the whole chain up to the section is
+   overflow:visible — so this is not the .rt-word/.skill-word-mask case
+   and widening a mask would have fixed nothing. The box simply has to
+   be big enough to hold the glyphs. 0.25em each side covers the 8px
+   with margin, and the matching negative margins cancel it so no
+   layout moves. */
+.about-q-words [data-word],
+.about-q-words [data-char],
+.about-q-chars [data-char] {
+  padding-top: 0.25em;
+  padding-bottom: 0.25em;
+  margin-top: -0.25em;
+  margin-bottom: -0.25em;
+}
+
 .about-live .about-q-words,
 .about-live .about-q-chars,
 .about-live .about-copy,

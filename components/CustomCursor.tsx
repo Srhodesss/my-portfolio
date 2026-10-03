@@ -67,6 +67,31 @@ export default function CustomCursor() {
        place. Zero cursors in state, and on WebKit the OS arrow drawn
        anyway because it had never been redrawn. Both windows now hand the
        real cursor back instead. */
+    /* Keep the hiding cursor image decoded and resident for the session.
+
+       The CSS value never changes — instrumented every frame across the
+       scroll-hint-to-normal transition and across scroll start, the
+       computed cursor stays the same url(), cursor-off is never set and
+       the ring never drops opacity. What does change is the ELEMENT under
+       a stationary pointer, which is exactly what scrolling does, and
+       WebKit re-resolves the cursor for it. If the image is not resident
+       at that moment there is a frame or two with nothing to draw, and
+       the OS default shows through — the blip.
+
+       Holding a decoded copy in the image cache means any re-resolution
+       is served immediately rather than racing a decode. The reference is
+       kept on the closure deliberately so it is not collected.
+
+       This string must stay identical to the one in globals.css
+       (html:not(.cursor-off)); a mismatch would warm an image the page
+       never asks for. */
+    const HIDE_CURSOR_URI =
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAGklEQVR42u3BAQEAAACCIP+vbkhAAQAAAO8GECAAAcm1w7EAAAAASUVORK5CYII=";
+    const warmCursor = new Image();
+    warmCursor.decoding = "sync";
+    warmCursor.src = HIDE_CURSOR_URI;
+    void warmCursor.decode().catch(() => {});
+
     let cursorShown = false;
     const setCursorShown = (shown: boolean) => {
       if (shown === cursorShown) return;
@@ -449,6 +474,7 @@ export default function CustomCursor() {
     document.documentElement.addEventListener("pointerleave", onLeave);
     return () => {
       document.documentElement.classList.add("cursor-off");
+      warmCursor.src = "";
       window.removeEventListener("pointermove", onMove);
       document.removeEventListener("click", onClick);
       document.documentElement.removeEventListener("pointerleave", onLeave);
